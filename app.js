@@ -309,7 +309,7 @@ window.updateDateInline = async function(inputEl, id) {
     const res = await updateRow(currentTab, 'ID', id, updateData);
     if(res.error) {
         alert("Lỗi cập nhật: " + res.error);
-        const row = currentData.find(r => r['ID'] === id);
+        const row = currentData.find(r => String(r['ID']) === String(id));
         if(row) {
             let oldVal = row[colName] || '';
             let p = String(oldVal).split('/');
@@ -317,22 +317,10 @@ window.updateDateInline = async function(inputEl, id) {
             else inputEl.value = oldVal;
         }
     } else {
-        const row = currentData.find(r => r['ID'] === id);
+        const row = currentData.find(r => String(r['ID']) === String(id));
         if(row) row[colName] = formattedForSheet;
         
-        inputEl.classList.remove('deadline-overdue', 'deadline-warning');
-        if (newValue) {
-            let statusCol = getHeaders(currentData, currentTab).find(col => col.toLowerCase() === 'trạng thái' || col.toLowerCase() === 'status');
-            let statusVal = statusCol && row ? row[statusCol] : '';
-            if (String(statusVal).toLowerCase() !== 'hoàn thành' && String(statusVal).toLowerCase() !== 'done') {
-                let d = new Date(newValue);
-                let today = new Date();
-                today.setHours(0,0,0,0);
-                let diffDays = Math.ceil((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-                if (diffDays < 0) inputEl.classList.add('deadline-overdue');
-                else if (diffDays <= 2) inputEl.classList.add('deadline-warning');
-            }
-        }
+        renderTable(currentData, currentTab, true); // Force UI refresh to apply sorting/colors accurately
     }
     inputEl.disabled = false;
     inputEl.style.background = oldBg;
@@ -1271,6 +1259,14 @@ function renderHistoryTimeline(historyData, parentId) {
             dateStr = dateStr.toLocaleDateString('vi-VN') + ' ' + dateStr.toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'});
         }
         
+        let contentVal = r['Nội dung'] || '';
+        const urlRegex = /(https?:\/\/[^\s]+)/g;
+        if (urlRegex.test(contentVal)) {
+            contentVal = contentVal.replace(urlRegex, function(url) {
+                return `<a href="${url}" target="_blank" style="color: #3b82f6; text-decoration: underline;">${url}</a>`;
+            });
+        }
+
         html += `
             <div class="timeline-item" id="history-item-${r.ID}">
                 <div class="timeline-marker"></div>
@@ -1281,7 +1277,7 @@ function renderHistoryTimeline(historyData, parentId) {
                         <button onclick="deleteHistory('${r.ID}')" style="background:none; border:none; color:var(--danger-color); cursor:pointer; font-size: 1rem;" title="Xóa"><ion-icon name="trash-outline"></ion-icon></button>
                     </div>
                 </div>
-                <div class="timeline-content">${r['Nội dung'] || ''}</div>
+                <div class="timeline-content">${contentVal}</div>
             </div>
         `;
     });
