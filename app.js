@@ -27,12 +27,17 @@ const qcForm = document.getElementById('quick-capture-form');
 const qcContent = document.getElementById('qc-content');
 const btnSubmitQc = document.getElementById('btn-submit-qc');
 
+// Mobile UI Elements
+const btnMobileMenu = document.getElementById('btn-mobile-menu');
+const sidebarOverlay = document.getElementById('sidebar-overlay');
+const sidebar = document.querySelector('.sidebar');
+
 // State
 let currentTab = 'dashboard';
 let currentData = [];
 let appSettings = null; 
 let projectsConfig = [];
-let currentViewMode = 'kanban'; // 'kanban' or 'table'
+let currentViewMode = 'table'; // 'kanban' or 'table'
 
 // Kanban Statuses
 const KANBAN_STATUSES = ['Cần làm', 'Đang xử lý', 'Chờ duyệt', 'Hoàn thành'];
@@ -75,7 +80,17 @@ function showApp() {
     loadPage('dashboard', 'Tổng quan');
 }
 
-// --- Sidebar ---
+// --- Sidebar & Mobile Menu ---
+btnMobileMenu.addEventListener('click', () => {
+    sidebar.classList.add('mobile-active');
+    sidebarOverlay.classList.add('active');
+});
+
+sidebarOverlay.addEventListener('click', () => {
+    sidebar.classList.remove('mobile-active');
+    sidebarOverlay.classList.remove('active');
+});
+
 function renderSidebar() {
     let html = `<li class="nav-link active" data-target="dashboard"><ion-icon name="grid-outline"></ion-icon> Tổng quan</li>`;
     projectsConfig.forEach(proj => {
@@ -88,6 +103,11 @@ function renderSidebar() {
         link.addEventListener('click', () => {
             allLinks.forEach(l => l.classList.remove('active'));
             link.classList.add('active');
+            
+            // Đóng sidebar trên mobile
+            sidebar.classList.remove('mobile-active');
+            sidebarOverlay.classList.remove('active');
+            
             loadPage(link.getAttribute('data-target'), link.textContent.trim());
         });
     });

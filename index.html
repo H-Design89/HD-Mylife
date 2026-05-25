@@ -13,6 +13,9 @@
 <body>
     <!-- App Container (Hidden initially until logged in) -->
     <div id="app-container" class="hidden" style="display: flex; width: 100%; min-height: 100vh;">
+        <!-- Mobile Sidebar Overlay -->
+        <div id="sidebar-overlay" class="sidebar-overlay"></div>
+        
         <!-- Sidebar -->
         <aside class="sidebar">
         <div class="logo">
@@ -36,8 +39,11 @@
 
     <!-- Main Content -->
     <main class="main-content">
-        <header class="header">
-            <h1 id="page-title">Tổng quan</h1>
+        <header class="header" style="display: flex; align-items: center; gap: 1rem;">
+            <button id="btn-mobile-menu" class="btn hidden-desktop" style="background: transparent; color: var(--text-color); font-size: 1.5rem; padding: 0.5rem; display: none;">
+                <ion-icon name="menu-outline"></ion-icon>
+            </button>
+            <h1 id="page-title" style="flex: 1; margin: 0;">Tổng quan</h1>
             <div style="display: flex; gap: 1rem;">
                 <button class="btn hidden" id="btn-toggle-view" style="background: rgba(255,255,255,0.1); color: var(--text-color); border: 1px solid var(--glass-border);">
                     <ion-icon name="list-outline"></ion-icon> Dạng Bảng

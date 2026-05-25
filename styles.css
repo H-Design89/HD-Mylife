@@ -665,3 +665,58 @@ td[onclick^="toggleId"]:hover .date-val {
     white-space: pre-wrap;
 }
 
+/* Mobile Responsiveness */
+.hidden-desktop {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .hidden-desktop {
+        display: block !important;
+    }
+    
+    .sidebar {
+        position: fixed;
+        left: -260px;
+        z-index: 1200;
+        transition: left 0.3s ease;
+    }
+    
+    .sidebar.mobile-active {
+        left: 0;
+    }
+    
+    .sidebar-overlay {
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(2px);
+        z-index: 1150;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s ease;
+    }
+    
+    .sidebar-overlay.active {
+        opacity: 1;
+        pointer-events: all;
+    }
+    
+    .main-content {
+        width: 100%;
+        padding: 1rem;
+    }
+    
+    .header h1 {
+        font-size: 1.25rem;
+    }
+    
+    .kanban-board {
+        flex-direction: column;
+    }
+    
+    .history-panel {
+        width: 100%;
+        right: -100%;
+    }
+}
