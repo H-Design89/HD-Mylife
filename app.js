@@ -338,6 +338,26 @@ window.updateDateInline = async function(inputEl, id) {
     inputEl.style.background = oldBg;
 };
 
+window.editLinkPrompt = async function(id, colName, oldVal) {
+    const newVal = prompt("Nhập đường link mới (bắt đầu bằng http:// hoặc https://):", oldVal);
+    if (newVal === null || newVal.trim() === oldVal.trim()) return;
+    
+    document.body.style.cursor = 'wait';
+    const updateData = {};
+    updateData[colName] = newVal.trim();
+    
+    const res = await updateRow(currentTab, 'ID', id, updateData);
+    document.body.style.cursor = 'default';
+    
+    if(res.error) {
+        alert("Lỗi cập nhật: " + res.error);
+    } else {
+        const row = currentData.find(r => String(r['ID']) === String(id));
+        if(row) row[colName] = newVal.trim();
+        renderTable(currentData, currentTab, true);
+    }
+};
+
 window.toggleId = function(cell) {
     const hiddenId = cell.querySelector('.hidden-id');
     if (hiddenId) {
@@ -434,7 +454,7 @@ window.sortData = function(colName) {
     renderTable(currentData, currentTab, true);
 };
 
-function formatCell(val, colName, statusVal) {
+function formatCell(val, colName, statusVal, idVal) {
     if (!val) return '';
     const h = colName.toLowerCase();
     
@@ -442,8 +462,24 @@ function formatCell(val, colName, statusVal) {
         val = new Date(val).toLocaleDateString('vi-VN');
     }
     
-    if (typeof val === 'string' && (val.startsWith('http://') || val.startsWith('https://'))) {
-        return `<a href="${val}" target="_blank" class="btn-link" contenteditable="false"><ion-icon name="link-outline"></ion-icon> Mở Link</a>`;
+    if (typeof val === 'string') {
+        const urlRegex = /(https?:\/\/[^\s]+)/g;
+        if (urlRegex.test(val)) {
+            if (val.trim().match(/^https?:\/\/[^\s]+$/)) {
+                let pureUrl = val.trim();
+                if (idVal) {
+                    return `<div style="display: flex; gap: 5px; align-items: center;">
+                                <a href="${pureUrl}" target="_blank" class="btn-link" contenteditable="false" style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><ion-icon name="link-outline"></ion-icon> Mở Link</a>
+                                <button class="btn" style="padding: 2px 6px; font-size: 0.9rem; background: rgba(255,255,255,0.1); color: var(--text-color); border: 1px solid var(--glass-border); border-radius: 4px; display: flex; align-items: center; justify-content: center;" onclick="editLinkPrompt('${idVal}', '${colName}', '${pureUrl}')" title="Sửa link"><ion-icon name="pencil-outline"></ion-icon></button>
+                            </div>`;
+                }
+                return `<a href="${pureUrl}" target="_blank" class="btn-link" contenteditable="false"><ion-icon name="link-outline"></ion-icon> Mở Link</a>`;
+            } else {
+                return val.replace(urlRegex, function(url) {
+                    return `<a href="${url}" target="_blank" style="color: #3b82f6; text-decoration: underline;" contenteditable="false">${url}</a>`;
+                });
+            }
+        }
     }
     
     if (h.includes('ưu tiên') || h.includes('priority')) {
@@ -496,7 +532,7 @@ function renderTable(data, sheetName, allowInlineEdit = true, forceShowHeaders =
             let rawVal = row[h];
             let statusCol = headers.find(col => col.toLowerCase() === 'trạng thái' || col.toLowerCase() === 'status');
             let statusVal = statusCol ? row[statusCol] : '';
-            let val = formatCell(rawVal, h, statusVal);
+            let val = formatCell(rawVal, h, statusVal, idVal);
 
             let isDateCol = h.toLowerCase().includes('ngày') || h.toLowerCase() === 'date';
 
@@ -547,8 +583,8 @@ function renderTable(data, sheetName, allowInlineEdit = true, forceShowHeaders =
                 html += `<td>${inputHtml}</td>`;
             } else if (allowInlineEdit && idCol) {
                 // Make cell content editable
-                // Don't make links editable this way to avoid breaking the HTML
-                if (String(rawVal).startsWith('http')) {
+                // Don't make links editable this way to avoid breaking the HTML if it's purely a link button
+                if (String(rawVal).trim().match(/^https?:\/\/[^\s]+$/)) {
                     html += `<td>${val || ''}</td>`;
                 } else {
                     html += `<td contenteditable="true" class="editable-cell" onblur="updateCellInline(this, '${idVal}', '${h}')">${val || ''}</td>`;
