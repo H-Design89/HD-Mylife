@@ -476,7 +476,7 @@ function formatCell(val, colName, statusVal, idVal) {
                 return `<a href="${pureUrl}" target="_blank" class="btn-link" contenteditable="false"><ion-icon name="link-outline"></ion-icon> Mở Link</a>`;
             } else {
                 return val.replace(urlRegex, function(url) {
-                    return `<a href="${url}" target="_blank" style="color: #3b82f6; text-decoration: underline;" contenteditable="false">${url}</a>`;
+                    return `<a href="${url}" style="color: #3b82f6; text-decoration: underline; cursor: pointer;" contenteditable="false" onclick="window.open('${url}', '_blank'); event.stopPropagation(); return false;">${url}</a>`;
                 });
             }
         }
