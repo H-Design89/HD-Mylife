@@ -51,6 +51,9 @@
                 <button class="btn hidden" id="btn-toggle-view" style="background: rgba(255,255,255,0.1); color: var(--text-color); border: 1px solid var(--glass-border);">
                     <ion-icon name="list-outline"></ion-icon> Dạng Bảng
                 </button>
+                <button class="btn hidden" id="btn-toggle-calendar" style="background: rgba(255,255,255,0.1); color: var(--text-color); border: 1px solid var(--glass-border);">
+                    <ion-icon name="calendar-outline"></ion-icon> Lịch
+                </button>
                 <button class="btn btn-primary hidden" id="btn-add">
                     <ion-icon name="add-outline"></ion-icon> Thêm mới
                 </button>
@@ -59,6 +62,10 @@
 
         <div id="content-area">
             <!-- Content will be dynamically loaded here -->
+        </div>
+
+        <div id="calendar-view-container" class="hidden" style="padding: 1rem;">
+            <!-- Calendar will be dynamically rendered here -->
         </div>
 
         <!-- Quick Capture Floating Button -->

@@ -12,6 +12,8 @@ const pageTitle = document.getElementById('page-title');
 const contentArea = document.getElementById('content-area');
 const btnAdd = document.getElementById('btn-add');
 const btnToggleView = document.getElementById('btn-toggle-view');
+const btnToggleCalendar = document.getElementById('btn-toggle-calendar');
+const calendarContainer = document.getElementById('calendar-view-container');
 
 const addModal = document.getElementById('add-modal');
 const btnCloseModal = document.getElementById('btn-close-modal');
@@ -152,6 +154,14 @@ async function loadPage(target, title) {
     // Hide controls by default
     btnAdd.classList.add('hidden');
     btnToggleView.classList.add('hidden');
+    btnToggleCalendar.classList.add('hidden');
+    
+    // Reset calendar view
+    isCalendarActive = false;
+    calendarContainer.classList.add('hidden');
+    contentArea.classList.remove('hidden');
+    btnToggleCalendar.style.background = 'rgba(255,255,255,0.1)';
+    btnToggleCalendar.style.color = 'var(--text-color)';
     
     if (target === 'dashboard') {
         renderDashboard();
@@ -187,6 +197,7 @@ async function loadPage(target, title) {
             
             if (hasKanbanCols) {
                 btnToggleView.classList.remove('hidden');
+                btnToggleCalendar.classList.remove('hidden');
                 if (currentViewMode === 'kanban') {
                     btnToggleView.innerHTML = '<ion-icon name="list-outline"></ion-icon> Dạng Bảng';
                     renderKanban(currentData, target, headers);
@@ -195,6 +206,7 @@ async function loadPage(target, title) {
                     renderTable(currentData, target, true); // true = allow inline edit
                 }
             } else {
+                btnToggleCalendar.classList.remove('hidden');
                 renderTable(currentData, target, true); // Enabled inline editing for non-Kanban boards
             }
         }
@@ -202,6 +214,11 @@ async function loadPage(target, title) {
 }
 
 btnToggleView.addEventListener('click', () => {
+    isCalendarActive = false;
+    calendarContainer.classList.add('hidden');
+    contentArea.classList.remove('hidden');
+    btnToggleCalendar.classList.remove('active');
+
     currentViewMode = currentViewMode === 'kanban' ? 'table' : 'kanban';
     // Re-render without re-fetching
     const headers = getHeaders(currentData, currentTab);
@@ -211,6 +228,34 @@ btnToggleView.addEventListener('click', () => {
     } else {
         btnToggleView.innerHTML = '<ion-icon name="albums-outline"></ion-icon> Dạng Kanban';
         renderTable(currentData, currentTab, true);
+    }
+});
+
+let isCalendarActive = false;
+let isCalendarAllMode = false;
+let currentCalendarDate = new Date();
+let allProjectsDataCache = {};
+
+btnToggleCalendar.addEventListener('click', async () => {
+    isCalendarActive = !isCalendarActive;
+    if (isCalendarActive) {
+        contentArea.classList.add('hidden');
+        calendarContainer.classList.remove('hidden');
+        btnToggleCalendar.style.background = 'var(--primary-color)';
+        btnToggleCalendar.style.color = 'white';
+        await loadAndRenderCalendar();
+    } else {
+        calendarContainer.classList.add('hidden');
+        contentArea.classList.remove('hidden');
+        btnToggleCalendar.style.background = 'rgba(255,255,255,0.1)';
+        btnToggleCalendar.style.color = 'var(--text-color)';
+        // Re-render current view
+        const headers = getHeaders(currentData, currentTab);
+        if (currentViewMode === 'kanban') {
+            renderKanban(currentData, currentTab, headers);
+        } else {
+            renderTable(currentData, currentTab, true);
+        }
     }
 });
 
@@ -1809,6 +1854,198 @@ addForm.addEventListener('submit', async (e) => {
         loadPage(currentTab, pageTitle.textContent);
     }
 });
+
+// --- Calendar View Logic ---
+
+window.changeCalendarMonth = function(offset) {
+    currentCalendarDate.setMonth(currentCalendarDate.getMonth() + offset);
+    renderCalendar();
+};
+
+window.toggleCalendarMode = async function() {
+    isCalendarAllMode = !isCalendarAllMode;
+    await loadAndRenderCalendar();
+};
+
+async function loadAndRenderCalendar() {
+    calendarContainer.innerHTML = `<div class="loading-container"><span class="loader"></span><p class="mt-4">Đang tải dữ liệu lịch...</p></div>`;
+    
+    if (isCalendarAllMode) {
+        // Fetch all projects (excluding dashboard, admin, and hidden sheets)
+        const fetchPromises = projectsConfig.map(p => {
+            if (allProjectsDataCache[p.id]) {
+                return Promise.resolve({ id: p.id, data: allProjectsDataCache[p.id] });
+            }
+            return getData(p.id).then(res => {
+                if (!res.error) allProjectsDataCache[p.id] = res;
+                return { id: p.id, data: res.error ? [] : res };
+            });
+        });
+        await Promise.all(fetchPromises);
+    } else {
+        // Just make sure currentTab is cached
+        allProjectsDataCache[currentTab] = currentData;
+    }
+    
+    renderCalendar();
+}
+
+function parseDateForCalendar(dateStr) {
+    if (!dateStr) return null;
+    let ds = String(dateStr).trim();
+    // YYYY-MM-DD
+    if (ds.match(/^\d{4}-\d{2}-\d{2}/)) return new Date(ds);
+    // DD/MM/YYYY
+    let parts = ds.split('/');
+    if (parts.length === 3) return new Date(`${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}T00:00:00`);
+    return null;
+}
+
+function renderCalendar() {
+    let year = currentCalendarDate.getFullYear();
+    let month = currentCalendarDate.getMonth();
+    
+    let firstDay = new Date(year, month, 1).getDay(); // 0 is Sunday
+    if (firstDay === 0) firstDay = 7; // make Monday = 1
+    
+    let daysInMonth = new Date(year, month + 1, 0).getDate();
+    let prevDaysInMonth = new Date(year, month, 0).getDate();
+    
+    let monthNames = ["Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6", "Tháng 7", "Tháng 8", "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12"];
+    
+    let html = `
+        <div class="calendar-header">
+            <div class="calendar-controls">
+                <button class="btn" style="background: rgba(255,255,255,0.1); border: 1px solid var(--glass-border); color: var(--text-color);" onclick="changeCalendarMonth(-1)"><ion-icon name="chevron-back-outline"></ion-icon></button>
+                <div class="calendar-header-title">${monthNames[month]} ${year}</div>
+                <button class="btn" style="background: rgba(255,255,255,0.1); border: 1px solid var(--glass-border); color: var(--text-color);" onclick="changeCalendarMonth(1)"><ion-icon name="chevron-forward-outline"></ion-icon></button>
+            </div>
+            
+            <div class="toggle-switch-container">
+                <span class="toggle-switch-label" style="color: ${!isCalendarAllMode ? 'var(--primary-color)' : 'var(--text-muted)'}" onclick="if(isCalendarAllMode) toggleCalendarMode()">Dự án hiện tại</span>
+                <label class="switch">
+                    <input type="checkbox" onchange="toggleCalendarMode()" ${isCalendarAllMode ? 'checked' : ''}>
+                    <span class="slider"></span>
+                </label>
+                <span class="toggle-switch-label" style="color: ${isCalendarAllMode ? 'var(--primary-color)' : 'var(--text-muted)'}" onclick="if(!isCalendarAllMode) toggleCalendarMode()">Tất cả dự án</span>
+            </div>
+        </div>
+        <div class="calendar-grid">
+            <div class="calendar-day-header">T2</div>
+            <div class="calendar-day-header">T3</div>
+            <div class="calendar-day-header">T4</div>
+            <div class="calendar-day-header">T5</div>
+            <div class="calendar-day-header">T6</div>
+            <div class="calendar-day-header" style="color: var(--warning-color);">T7</div>
+            <div class="calendar-day-header" style="color: var(--danger-color);">CN</div>
+    `;
+    
+    let tasks = [];
+    if (isCalendarAllMode) {
+        projectsConfig.forEach(p => {
+            let data = allProjectsDataCache[p.id] || [];
+            data.forEach(r => tasks.push({...r, _sheet: p.id}));
+        });
+    } else {
+        (currentData || []).forEach(r => tasks.push({...r, _sheet: currentTab}));
+    }
+    
+    // Process tasks to find valid start and end dates
+    let eventBars = [];
+    tasks.forEach(row => {
+        let headers = Object.keys(row);
+        let startCol = headers.find(h => h.toLowerCase() === 'ngày bắt đầu' || h.toLowerCase() === 'ngày');
+        let endCol = headers.find(h => h.toLowerCase().includes('hạn chót') || h.toLowerCase().includes('deadline'));
+        let titleCol = headers.find(h => h.toLowerCase().includes('tên') || h.toLowerCase().includes('tiêu đề')) || headers[2] || headers[1];
+        let statusCol = headers.find(h => h.toLowerCase() === 'trạng thái' || h.toLowerCase() === 'status');
+        
+        let startDate = parseDateForCalendar(row[startCol]);
+        let endDate = parseDateForCalendar(row[endCol]);
+        
+        // Fallback: If only deadline exists, start = end. If only start exists, end = start.
+        if (startDate && !endDate) endDate = new Date(startDate);
+        if (!startDate && endDate) startDate = new Date(endDate);
+        
+        if (startDate && endDate) {
+            startDate.setHours(0,0,0,0);
+            endDate.setHours(23,59,59,999);
+            // Swap if start > end
+            if (startDate > endDate) { let t = startDate; startDate = endDate; endDate = t; }
+            
+            eventBars.push({
+                id: row['ID'] || Math.random().toString(),
+                title: row[titleCol] || 'Không tên',
+                status: statusCol ? row[statusCol] : '',
+                start: startDate,
+                end: endDate,
+                sheet: row._sheet
+            });
+        }
+    });
+    
+    let today = new Date();
+    today.setHours(0,0,0,0);
+    
+    // Draw grid
+    let dayCount = 1;
+    let nextMonthDay = 1;
+    
+    for (let i = 1; i <= 42; i++) {
+        let cellDate;
+        let isCurrentMonth = false;
+        let cellClass = "calendar-day-cell";
+        let displayNum = "";
+        
+        if (i < firstDay) {
+            let d = prevDaysInMonth - (firstDay - i) + 1;
+            cellDate = new Date(year, month - 1, d);
+            cellClass += " other-month";
+            displayNum = d;
+        } else if (dayCount <= daysInMonth) {
+            cellDate = new Date(year, month, dayCount);
+            displayNum = dayCount;
+            isCurrentMonth = true;
+            dayCount++;
+        } else {
+            cellDate = new Date(year, month + 1, nextMonthDay);
+            cellClass += " other-month";
+            displayNum = nextMonthDay;
+            nextMonthDay++;
+        }
+        
+        if (cellDate.getTime() === today.getTime()) {
+            cellClass += " today";
+        }
+        
+        let cellEventsHtml = '';
+        // Find events that overlap with this cellDate
+        let cellStart = new Date(cellDate);
+        cellStart.setHours(0,0,0,0);
+        let cellEnd = new Date(cellDate);
+        cellEnd.setHours(23,59,59,999);
+        
+        eventBars.forEach(eb => {
+            if (eb.start <= cellEnd && eb.end >= cellStart) {
+                let color = window.getStatusColor(eb.status);
+                if (color === 'var(--text-color)') color = '#64748b'; // Slate 500 for better contrast with white text
+                
+                let title = eb.title;
+                if (isCalendarAllMode) title = `[${eb.sheet}] ${title}`;
+                cellEventsHtml += `<div class="calendar-task-bar" style="background: ${color};" title="${title}\nTừ: ${eb.start.toLocaleDateString('vi-VN')}\nĐến: ${eb.end.toLocaleDateString('vi-VN')}">${title}</div>`;
+            }
+        });
+        
+        html += `
+            <div class="${cellClass}">
+                <div class="calendar-day-number">${displayNum}</div>
+                ${cellEventsHtml}
+            </div>
+        `;
+    }
+    
+    html += `</div>`;
+    calendarContainer.innerHTML = html;
+}
 
 // Start
 init();
