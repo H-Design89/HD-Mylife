@@ -44,7 +44,10 @@
                 <ion-icon name="menu-outline"></ion-icon>
             </button>
             <h1 id="page-title" style="flex: 1; margin: 0;">Tổng quan</h1>
-            <div style="display: flex; gap: 1rem;">
+            <div style="display: flex; gap: 1rem; align-items: center;">
+                <button class="btn" id="btn-theme-toggle" style="background: transparent; color: var(--text-color); font-size: 1.2rem; padding: 0.5rem;" title="Chuyển giao diện Sáng/Tối">
+                    <ion-icon name="moon-outline" id="theme-icon"></ion-icon>
+                </button>
                 <button class="btn hidden" id="btn-toggle-view" style="background: rgba(255,255,255,0.1); color: var(--text-color); border: 1px solid var(--glass-border);">
                     <ion-icon name="list-outline"></ion-icon> Dạng Bảng
                 </button>
@@ -66,8 +69,8 @@
     </div> <!-- End App Container -->
 
     <!-- Login Screen -->
-    <div id="login-container" class="modal-overlay active" style="position: relative; height: 100vh;">
-        <div class="modal glass-card" style="transform: none;">
+    <div id="login-container" class="modal-overlay active login-page-wrapper" style="position: fixed; height: 100vh; z-index: 9999;">
+        <div class="modal glass-card login-glass-card" style="max-width: 400px; width: 90%; margin: 0 auto;">
             <div class="logo mb-4">
                 <ion-icon name="planet-outline"></ion-icon>
                 My Life

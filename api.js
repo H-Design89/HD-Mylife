@@ -115,3 +115,20 @@ export async function deleteData(sheetName, idColumn, idValue) {
         return { error: error.message };
     }
 }
+
+export async function createSheet(sheetName, headers) {
+    try {
+        const payload = {
+            action: "create_sheet",
+            sheet: sheetName,
+            headers: headers
+        };
+        const response = await fetch(SCRIPT_URL, {
+            method: "POST",
+            body: JSON.stringify(payload)
+        });
+        return await response.json();
+    } catch (error) {
+        return { error: error.message };
+    }
+}

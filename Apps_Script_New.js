@@ -75,6 +75,20 @@ function doPost(e) {
     return ContentService.createTextOutput(JSON.stringify({success: true})).setMimeType(ContentService.MimeType.JSON);
   }
   
+  if (action === "create_sheet") {
+    let newSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(params.sheet);
+    if (newSheet) {
+      return ContentService.createTextOutput(JSON.stringify({error: "Trang tính đã tồn tại"})).setMimeType(ContentService.MimeType.JSON);
+    }
+    newSheet = SpreadsheetApp.getActiveSpreadsheet().insertSheet(params.sheet);
+    if (params.headers && params.headers.length > 0) {
+      let finalHeaders = [...params.headers];
+      if (!finalHeaders.includes('ID')) finalHeaders.unshift('ID');
+      newSheet.appendRow(finalHeaders);
+    }
+    return ContentService.createTextOutput(JSON.stringify({success: true})).setMimeType(ContentService.MimeType.JSON);
+  }
+  
   const sheetName = params.sheet;
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
   

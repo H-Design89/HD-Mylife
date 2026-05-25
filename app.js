@@ -1,4 +1,4 @@
-import { getData, addData, getSettings, updateSettings, updateRow, deleteData } from './api.js';
+import { getData, addData, getSettings, updateSettings, updateRow, deleteData, createSheet } from './api.js';
 
 // DOM Elements
 const appContainer = document.getElementById('app-container');
@@ -31,6 +31,8 @@ const btnSubmitQc = document.getElementById('btn-submit-qc');
 const btnMobileMenu = document.getElementById('btn-mobile-menu');
 const sidebarOverlay = document.getElementById('sidebar-overlay');
 const sidebar = document.querySelector('.sidebar');
+const btnThemeToggle = document.getElementById('btn-theme-toggle');
+const themeIcon = document.getElementById('theme-icon');
 
 // State
 let currentTab = 'dashboard';
@@ -38,9 +40,38 @@ let currentData = [];
 let appSettings = null; 
 let projectsConfig = [];
 let currentViewMode = 'table'; // 'kanban' or 'table'
+let currentSortCol = null;
+let currentSortAsc = true;
 
 // Kanban Statuses
 const KANBAN_STATUSES = ['Cần làm', 'Đang xử lý', 'Chờ duyệt', 'Hoàn thành'];
+
+window.getStatusColor = function(status) {
+    status = String(status || '').toLowerCase();
+    if (status.includes('đang xử lý') || status.includes('in progress')) return 'var(--primary-color)';
+    if (status.includes('chờ duyệt') || status.includes('review') || status.includes('pending')) return 'var(--warning-color)';
+    if (status.includes('hoàn thành') || status.includes('done')) return 'var(--success-color)';
+    return 'var(--text-color)'; // Default (Cần làm)
+};
+
+// Theme Initialization
+function initTheme() {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'light') {
+        document.documentElement.classList.add('light-mode');
+        if(themeIcon) themeIcon.setAttribute('name', 'sunny-outline');
+    }
+}
+initTheme();
+
+if(btnThemeToggle) {
+    btnThemeToggle.addEventListener('click', () => {
+        document.documentElement.classList.toggle('light-mode');
+        const isLight = document.documentElement.classList.contains('light-mode');
+        localStorage.setItem('theme', isLight ? 'light' : 'dark');
+        themeIcon.setAttribute('name', isLight ? 'sunny-outline' : 'moon-outline');
+    });
+}
 
 // --- Init & Login Logic ---
 async function init() {
@@ -229,9 +260,82 @@ window.updateStatusInline = async function(selectEl, id) {
         // Update currentData array locally
         const row = currentData.find(r => r['ID'] === id);
         if(row) row[statusColName] = newStatus;
+        selectEl.style.color = getStatusColor(newStatus);
+        selectEl.style.borderColor = getStatusColor(newStatus);
     }
     selectEl.disabled = false;
     selectEl.style.background = oldBg;
+};
+
+window.updatePriorityInline = async function(selectEl, id) {
+    const newValue = selectEl.value;
+    selectEl.disabled = true;
+    const oldBg = selectEl.style.background;
+    selectEl.style.background = 'rgba(255, 255, 255, 0.2)'; // Loading style
+    
+    const updateData = {};
+    const colName = selectEl.getAttribute('data-col');
+    updateData[colName] = newValue;
+    
+    const res = await updateRow(currentTab, 'ID', id, updateData);
+    if(res.error) {
+        alert("Lỗi cập nhật: " + res.error);
+        const row = currentData.find(r => r['ID'] === id);
+        if(row) selectEl.value = row[colName];
+    } else {
+        const row = currentData.find(r => r['ID'] === id);
+        if(row) row[colName] = newValue;
+    }
+    selectEl.disabled = false;
+    selectEl.style.background = oldBg;
+};
+
+window.updateDateInline = async function(inputEl, id) {
+    const newValue = inputEl.value;
+    let formattedForSheet = newValue;
+    if (newValue) {
+        let parts = newValue.split('-');
+        if (parts.length === 3) formattedForSheet = `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+
+    inputEl.disabled = true;
+    const oldBg = inputEl.style.background;
+    inputEl.style.background = 'rgba(255, 255, 255, 0.2)';
+    
+    const updateData = {};
+    const colName = inputEl.getAttribute('data-col');
+    updateData[colName] = formattedForSheet;
+    
+    const res = await updateRow(currentTab, 'ID', id, updateData);
+    if(res.error) {
+        alert("Lỗi cập nhật: " + res.error);
+        const row = currentData.find(r => r['ID'] === id);
+        if(row) {
+            let oldVal = row[colName] || '';
+            let p = String(oldVal).split('/');
+            if(p.length === 3) inputEl.value = `${p[2]}-${p[1]}-${p[0]}`;
+            else inputEl.value = oldVal;
+        }
+    } else {
+        const row = currentData.find(r => r['ID'] === id);
+        if(row) row[colName] = formattedForSheet;
+        
+        inputEl.classList.remove('deadline-overdue', 'deadline-warning');
+        if (newValue) {
+            let statusCol = getHeaders(currentData, currentTab).find(col => col.toLowerCase() === 'trạng thái' || col.toLowerCase() === 'status');
+            let statusVal = statusCol && row ? row[statusCol] : '';
+            if (String(statusVal).toLowerCase() !== 'hoàn thành' && String(statusVal).toLowerCase() !== 'done') {
+                let d = new Date(newValue);
+                let today = new Date();
+                today.setHours(0,0,0,0);
+                let diffDays = Math.ceil((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                if (diffDays < 0) inputEl.classList.add('deadline-overdue');
+                else if (diffDays <= 2) inputEl.classList.add('deadline-warning');
+            }
+        }
+    }
+    inputEl.disabled = false;
+    inputEl.style.background = oldBg;
 };
 
 window.toggleId = function(cell) {
@@ -295,6 +399,63 @@ window.deleteRowData = async function(id) {
     }
 };
 
+window.sortData = function(colName) {
+    if (currentSortCol === colName) {
+        currentSortAsc = !currentSortAsc;
+    } else {
+        currentSortCol = colName;
+        currentSortAsc = true;
+    }
+    
+    currentData.sort((a, b) => {
+        let valA = a[colName] || '';
+        let valB = b[colName] || '';
+        
+        // Date parsing
+        if (typeof valA === 'string' && valA.match(/^\d{4}-\d{2}-\d{2}/)) valA = new Date(valA).getTime();
+        if (typeof valB === 'string' && valB.match(/^\d{4}-\d{2}-\d{2}/)) valB = new Date(valB).getTime();
+        
+        // Number parsing
+        let numA = parseFloat(String(valA).replace(/[,.]/g, ''));
+        let numB = parseFloat(String(valB).replace(/[,.]/g, ''));
+        if (!isNaN(numA) && !isNaN(numB) && valA !== '' && valB !== '') {
+            valA = numA; valB = numB;
+        } else {
+            valA = String(valA).toLowerCase();
+            valB = String(valB).toLowerCase();
+        }
+        
+        if (valA < valB) return currentSortAsc ? -1 : 1;
+        if (valA > valB) return currentSortAsc ? 1 : -1;
+        return 0;
+    });
+    
+    const headers = getHeaders(currentData, currentTab);
+    renderTable(currentData, currentTab, true);
+};
+
+function formatCell(val, colName, statusVal) {
+    if (!val) return '';
+    const h = colName.toLowerCase();
+    
+    if (typeof val === 'string' && val.match(/^\d{4}-\d{2}-\d{2}T/)) {
+        val = new Date(val).toLocaleDateString('vi-VN');
+    }
+    
+    if (typeof val === 'string' && (val.startsWith('http://') || val.startsWith('https://'))) {
+        return `<a href="${val}" target="_blank" class="btn-link" contenteditable="false"><ion-icon name="link-outline"></ion-icon> Mở Link</a>`;
+    }
+    
+    if (h.includes('ưu tiên') || h.includes('priority')) {
+        let v = String(val).toLowerCase();
+        if (v.includes('cao') || v.includes('high')) return `🔴 ${val}`;
+        if (v.includes('trung bình') || v.includes('medium')) return `🟡 ${val}`;
+        if (v.includes('thấp') || v.includes('low')) return `🟢 ${val}`;
+    }
+    
+    return val;
+}
+
 function renderTable(data, sheetName, allowInlineEdit = true, forceShowHeaders = false) {
     if ((!data || data.length === 0) && !forceShowHeaders) {
         contentArea.innerHTML = `<div class="glass-card text-center"><p class="mt-4">Chưa có dữ liệu. Hãy thêm bản ghi mới!</p><p style="color:var(--warning-color); font-size:0.8rem; margin-top:10px">Mẹo: Để dùng tính năng Kanban kéo thả, Sheet của bạn phải có cột 'ID' và cột 'Trạng thái'.</p></div>`;
@@ -307,9 +468,19 @@ function renderTable(data, sheetName, allowInlineEdit = true, forceShowHeaders =
     const displayHeaders = headers.filter(h => h !== idCol);
     
     displayHeaders.forEach(h => {
-        html += `<th style="position: relative;">
-                    <div style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; user-select: none;" onclick="toggleExcelFilter(event, '${h}')">
-                        ${h} <ion-icon name="filter-outline" class="excel-filter-icon" id="icon-filter-${h.replace(/\s+/g, '-')}"></ion-icon>
+        let sortIconHtml = '';
+        if (h === currentSortCol) {
+            sortIconHtml = currentSortAsc ? `<ion-icon name="caret-up-outline" class="sort-icon active"></ion-icon>` : `<ion-icon name="caret-down-outline" class="sort-icon active"></ion-icon>`;
+        } else {
+            sortIconHtml = `<ion-icon name="caret-up-outline" class="sort-icon"></ion-icon>`;
+        }
+        
+        html += `<th style="position: relative;" class="sortable">
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                        <div style="display: flex; align-items: center; cursor: pointer; flex: 1" onclick="sortData('${h}')">
+                            ${h} ${sortIconHtml}
+                        </div>
+                        <ion-icon name="filter-outline" class="excel-filter-icon" id="icon-filter-${h.replace(/\s+/g, '-')}" onclick="toggleExcelFilter(event, '${h}')" title="Lọc dữ liệu"></ion-icon>
                     </div>
                 </th>`;
     });
@@ -322,12 +493,12 @@ function renderTable(data, sheetName, allowInlineEdit = true, forceShowHeaders =
         headers.forEach(h => {
             if (h === idCol) return; // Hide ID column
 
-            let val = row[h];
-            let isDateCol = h.toLowerCase().includes('ngày') || h.toLowerCase() === 'date';
+            let rawVal = row[h];
+            let statusCol = headers.find(col => col.toLowerCase() === 'trạng thái' || col.toLowerCase() === 'status');
+            let statusVal = statusCol ? row[statusCol] : '';
+            let val = formatCell(rawVal, h, statusVal);
 
-            if (typeof val === 'string' && val.match(/^\d{4}-\d{2}-\d{2}T/)) {
-                val = new Date(val).toLocaleDateString('vi-VN');
-            }
+            let isDateCol = h.toLowerCase().includes('ngày') || h.toLowerCase() === 'date';
 
             if (isDateCol) {
                 html += `<td style="cursor: pointer;" onclick="toggleId(this)">
@@ -336,18 +507,59 @@ function renderTable(data, sheetName, allowInlineEdit = true, forceShowHeaders =
                          </td>`;
             } else if (allowInlineEdit && idCol && (h.toLowerCase() === 'trạng thái' || h.toLowerCase() === 'status')) {
                 // Inline edit for status column
-                let selectHtml = `<select class="form-control" style="padding: 0.25rem; font-size: 0.85rem;" data-col="${h}" onchange="updateStatusInline(this, '${idVal}')">`;
+                const sColor = getStatusColor(val);
+                let selectHtml = `<select class="form-control" style="padding: 0.25rem; font-size: 0.85rem; font-weight: 600; color: ${sColor}; border-color: ${sColor};" data-col="${h}" onchange="updateStatusInline(this, '${idVal}')">`;
                 KANBAN_STATUSES.forEach(s => {
                     const selected = (val === s) ? 'selected' : '';
-                    selectHtml += `<option value="${s}" ${selected}>${s}</option>`;
+                    selectHtml += `<option value="${s}" style="color: var(--text-color);" ${selected}>${s}</option>`;
                 });
                 selectHtml += `</select>`;
                 html += `<td>${selectHtml}</td>`;
+            } else if (allowInlineEdit && idCol && (h.toLowerCase().includes('ưu tiên') || h.toLowerCase().includes('priority') || h.toLowerCase().includes('uu tien'))) {
+                let options = ['Cao', 'Trung bình', 'Thấp'];
+                let selectHtml = `<select class="form-control" style="padding: 0.25rem; font-size: 0.85rem; font-weight: 600; min-width: 110px;" data-col="${h}" onchange="updatePriorityInline(this, '${idVal}')">`;
+                selectHtml += `<option value="">- Chọn -</option>`;
+                options.forEach(s => {
+                    const selected = (String(rawVal).toLowerCase().includes(s.toLowerCase())) ? 'selected' : '';
+                    let icon = s === 'Cao' ? '🔴' : s === 'Trung bình' ? '🟡' : '🟢';
+                    selectHtml += `<option value="${s}" ${selected}>${icon} ${s}</option>`;
+                });
+                selectHtml += `</select>`;
+                html += `<td>${selectHtml}</td>`;
+            } else if (allowInlineEdit && idCol && (h.toLowerCase().includes('hạn chót') || h.toLowerCase().includes('deadline') || h.toLowerCase().includes('han chot'))) {
+                let dateInputVal = '';
+                let parts = String(val).split('/');
+                if (parts.length === 3) dateInputVal = `${parts[2]}-${parts[1]}-${parts[0]}`;
+                
+                let inputClass = 'form-control';
+                if (dateInputVal && String(statusVal).toLowerCase() !== 'hoàn thành' && String(statusVal).toLowerCase() !== 'done') {
+                    let d = new Date(dateInputVal);
+                    if (!isNaN(d.getTime())) {
+                        let today = new Date();
+                        today.setHours(0,0,0,0);
+                        let diffDays = Math.ceil((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                        if (diffDays < 0) inputClass += ' deadline-overdue';
+                        else if (diffDays <= 2) inputClass += ' deadline-warning';
+                    }
+                }
+                
+                let inputHtml = `<input type="date" class="${inputClass}" style="padding: 0.25rem; font-size: 0.85rem; max-width: 140px;" data-col="${h}" value="${dateInputVal}" onchange="updateDateInline(this, '${idVal}')">`;
+                html += `<td>${inputHtml}</td>`;
             } else if (allowInlineEdit && idCol) {
                 // Make cell content editable
-                html += `<td contenteditable="true" class="editable-cell" onblur="updateCellInline(this, '${idVal}', '${h}')">${val || ''}</td>`;
+                // Don't make links editable this way to avoid breaking the HTML
+                if (String(rawVal).startsWith('http')) {
+                    html += `<td>${val || ''}</td>`;
+                } else {
+                    html += `<td contenteditable="true" class="editable-cell" onblur="updateCellInline(this, '${idVal}', '${h}')">${val || ''}</td>`;
+                }
             } else {
-                html += `<td>${val || ''}</td>`;
+                if (h.toLowerCase() === 'trạng thái' || h.toLowerCase() === 'status') {
+                    const sColor = getStatusColor(rawVal);
+                    html += `<td style="color: ${sColor}; font-weight: 600;">${val || ''}</td>`;
+                } else {
+                    html += `<td>${val || ''}</td>`;
+                }
             }
         });
         
@@ -795,6 +1007,71 @@ window.deleteProject = function(index) {
     }
 };
 
+window.moveProjectUp = function(index) {
+    if (index === 0) return;
+    const temp = projectsConfig[index - 1];
+    projectsConfig[index - 1] = projectsConfig[index];
+    projectsConfig[index] = temp;
+    renderAdminProjects();
+};
+
+window.moveProjectDown = function(index) {
+    if (index === projectsConfig.length - 1) return;
+    const temp = projectsConfig[index + 1];
+    projectsConfig[index + 1] = projectsConfig[index];
+    projectsConfig[index] = temp;
+    renderAdminProjects();
+};
+
+window.duplicateProject = async function(index, btn) {
+    let oldText = "Copy";
+    if (btn) {
+        oldText = btn.innerHTML;
+        btn.innerHTML = '<span class="loader" style="width:12px;height:12px;border-width:2px;margin:0"></span>';
+        btn.disabled = true;
+    }
+
+    const proj = projectsConfig[index];
+    const newId = proj.id + '_Copy';
+    
+    // Determine actual headers
+    let actualColumns = proj.columns;
+    if (!actualColumns) {
+        // Try to fetch data from original sheet to get headers
+        const data = await getData(proj.id);
+        const headers = getHeaders(data, proj.id);
+        // Exclude ID to save in config
+        const displayHeaders = headers.filter(h => h.toUpperCase() !== 'ID');
+        actualColumns = displayHeaders.join(', ');
+    }
+    
+    // Copy the config in UI
+    projectsConfig.push({
+        id: newId,
+        name: proj.name + ' (Copy)',
+        icon: proj.icon,
+        columns: actualColumns
+    });
+    
+    // Auto-create on Google Sheets
+    const colsArr = (actualColumns || '').split(',').map(c => c.trim()).filter(c => c);
+    
+    const res = await createSheet(newId, colsArr);
+    
+    renderAdminProjects();
+    
+    if(res.error && res.error !== "Trang tính đã tồn tại") {
+        alert("Cấu hình giao diện đã sao chép. Tuy nhiên hệ thống không thể tự tạo Sheet trên Google: " + res.error + ". Bạn cần tự tạo 1 tab mới trên file Sheets.");
+    } else {
+        alert(`Đã nhân bản cấu hình và tự động tạo tab "${newId}" trên Google Sheets thành công!`);
+    }
+    
+    if (btn) {
+        btn.innerHTML = oldText;
+        btn.disabled = false;
+    }
+};
+
 window.saveProjects = async function() {
     const btn = document.getElementById('btn-save-projects');
     btn.innerText = 'Đang lưu...';
@@ -805,6 +1082,10 @@ window.saveProjects = async function() {
     btn.innerText = 'Lưu danh sách';
 };
 
+window.updateProjectConfig = function(index, field, value) {
+    projectsConfig[index][field] = value;
+};
+
 function renderAdminProjects() {
     const tbody = document.getElementById('admin-projects-tbody');
     if(!tbody) return;
@@ -812,10 +1093,15 @@ function renderAdminProjects() {
     projectsConfig.forEach((proj, index) => {
         const cols = proj.columns || '';
         html += `<tr>
-            <td>${proj.id}</td>
-            <td><input type="text" class="form-control" style="padding: 0.25rem 0.5rem" value="${proj.name}" onchange="projectsConfig[${index}].name = this.value"></td>
-            <td><input type="text" class="form-control" style="padding: 0.25rem 0.5rem" value="${cols}" placeholder="VD: Ngày, Tên CV, Trạng thái, Ghi chú" onchange="projectsConfig[${index}].columns = this.value"></td>
-            <td><button class="btn btn-primary" style="background: var(--danger-color); padding: 0.25rem 0.5rem" onclick="deleteProject(${index})">Xóa</button></td>
+            <td><input type="text" class="form-control" style="padding: 0.25rem 0.5rem; width: 120px;" value="${proj.id}" onchange="updateProjectConfig(${index}, 'id', this.value)"></td>
+            <td><input type="text" class="form-control" style="padding: 0.25rem 0.5rem" value="${proj.name}" onchange="updateProjectConfig(${index}, 'name', this.value)"></td>
+            <td><input type="text" class="form-control" style="padding: 0.25rem 0.5rem" value="${cols}" placeholder="VD: Ngày, Tên CV, Trạng thái, Ghi chú" onchange="updateProjectConfig(${index}, 'columns', this.value)"></td>
+            <td style="white-space: nowrap;">
+                <button class="btn" style="background: rgba(255,255,255,0.1); padding: 0.25rem 0.5rem; margin-right: 4px; ${index === 0 ? 'opacity: 0.5; cursor: not-allowed;' : ''}" onclick="moveProjectUp(${index})" title="Di chuyển lên trên" ${index === 0 ? 'disabled' : ''}><ion-icon name="arrow-up-outline"></ion-icon></button>
+                <button class="btn" style="background: rgba(255,255,255,0.1); padding: 0.25rem 0.5rem; margin-right: 4px; ${index === projectsConfig.length - 1 ? 'opacity: 0.5; cursor: not-allowed;' : ''}" onclick="moveProjectDown(${index})" title="Di chuyển xuống dưới" ${index === projectsConfig.length - 1 ? 'disabled' : ''}><ion-icon name="arrow-down-outline"></ion-icon></button>
+                <button class="btn" style="background: var(--warning-color); color: white; padding: 0.25rem 0.5rem; margin-right: 4px;" onclick="duplicateProject(${index}, this)" title="Nhân bản cấu hình (Copy)">Copy</button>
+                <button class="btn btn-primary" style="background: var(--danger-color); padding: 0.25rem 0.5rem" onclick="deleteProject(${index})">Xóa</button>
+            </td>
         </tr>`;
     });
     tbody.innerHTML = html;

@@ -11,6 +11,102 @@
     --warning-color: #f59e0b;
 }
 
+:root.light-mode {
+    --bg-color: #f1f5f9;
+    --text-color: #1e293b;
+    --text-muted: #64748b;
+    --glass-bg: rgba(255, 255, 255, 0.85);
+    --glass-border: rgba(0, 0, 0, 0.1);
+    --primary-color: #2563eb;
+    --primary-hover: #1d4ed8;
+}
+
+/* Login Page Enhancements */
+.login-page-wrapper {
+    background: linear-gradient(-45deg, #ffffff, #f1f5f9, #e2e8f0, #3b82f6);
+    background-size: 400% 400%;
+    animation: gradientBG 15s ease infinite;
+}
+
+@keyframes gradientBG {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+.login-glass-card {
+    background: rgba(255, 255, 255, 0.85) !important;
+    backdrop-filter: blur(20px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.4) !important;
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15) !important;
+    border-radius: 16px;
+    padding: 2.5rem !important;
+}
+
+.login-glass-card h2, .login-glass-card .logo, .login-glass-card label {
+    color: #1e293b !important;
+}
+
+.login-glass-card .form-control {
+    background: rgba(255, 255, 255, 0.9) !important;
+    border: 1px solid rgba(0,0,0,0.1) !important;
+    color: #1e293b !important;
+}
+
+/* Link Button */
+.btn-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.75rem;
+    background: rgba(59, 130, 246, 0.15);
+    color: var(--primary-color) !important;
+    border-radius: 20px;
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+.btn-link:hover {
+    background: var(--primary-color);
+    color: white !important;
+}
+
+/* Deadline styles */
+.deadline-overdue {
+    color: var(--danger-color) !important;
+    font-weight: bold;
+    animation: pulseRed 2s infinite;
+}
+.deadline-warning {
+    color: var(--warning-color) !important;
+    font-weight: bold;
+}
+@keyframes pulseRed {
+    0% { opacity: 1; }
+    50% { opacity: 0.6; }
+    100% { opacity: 1; }
+}
+
+/* Sorting */
+th.sortable {
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.2s;
+}
+th.sortable:hover {
+    background: rgba(128,128,128,0.1);
+}
+.sort-icon {
+    font-size: 0.8rem;
+    margin-left: 0.25rem;
+    opacity: 0.3;
+}
+.sort-icon.active {
+    opacity: 1;
+    color: var(--primary-color);
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -173,8 +269,15 @@ th {
     letter-spacing: 0.05em;
 }
 
-tr:hover td {
-    background: rgba(255, 255, 255, 0.02);
+/* Zebra Striping & Hover Effect */
+tbody tr {
+    transition: background-color 0.2s ease;
+}
+tbody tr:nth-child(even) {
+    background-color: rgba(128, 128, 128, 0.05);
+}
+tbody tr:hover {
+    background-color: rgba(59, 130, 246, 0.15) !important;
 }
 
 /* Form Styles */
