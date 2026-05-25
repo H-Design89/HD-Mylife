@@ -553,7 +553,12 @@ function renderTable(data, sheetName, allowInlineEdit = true, forceShowHeaders =
             } else if (allowInlineEdit && idCol && (h.toLowerCase().includes('hạn chót') || h.toLowerCase().includes('deadline') || h.toLowerCase().includes('han chot'))) {
                 let dateInputVal = '';
                 let parts = String(val).split('/');
-                if (parts.length === 3) dateInputVal = `${parts[2]}-${parts[1]}-${parts[0]}`;
+                if (parts.length === 3) {
+                    let d = parts[0].padStart(2, '0');
+                    let m = parts[1].padStart(2, '0');
+                    let y = parts[2];
+                    dateInputVal = `${y}-${m}-${d}`;
+                }
                 
                 let inputClass = 'form-control';
                 if (dateInputVal && String(statusVal).toLowerCase() !== 'hoàn thành' && String(statusVal).toLowerCase() !== 'done') {
