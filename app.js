@@ -231,6 +231,7 @@ async function loadPage(target, title, highlightId = null) {
         }
     }
 }
+window.loadPage = loadPage;
 
 if (btnToggleCompleted) {
     btnToggleCompleted.addEventListener('click', () => {
@@ -1161,8 +1162,8 @@ async function renderMyDay() {
                     <div style="font-size: 0.85rem; margin-bottom: 1rem;">
                         <span style="color: var(--text-muted);">Hạn chót:</span> <span style="${t.isUrgent ? 'color: var(--danger-color); font-weight: bold;' : 'color: var(--text-color);'}">${t.deadline}</span>
                     </div>
-                    <button class="btn btn-primary" style="width: 100%; justify-content: center; padding: 0.4rem; font-size: 0.85rem;" onclick="loadPage('${t.projId}', '${t.projName}', '${t.id}')">
-                        Đi tới Dự án <ion-icon name="arrow-forward-outline"></ion-icon>
+                    <button class="btn btn-primary" style="width: 100%; justify-content: center; padding: 0.4rem; font-size: 0.85rem;" onclick="window.loadPage('${t.projId}', '${t.projName}', '${t.id}')">
+                        Đi đến công việc <ion-icon name="arrow-forward-outline"></ion-icon>
                     </button>
                 </div>
             `;
