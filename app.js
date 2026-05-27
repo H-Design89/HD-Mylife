@@ -603,11 +603,37 @@ window.setCurrentViewMode = function(mode) {
 };
 
 window.showAptDetails = function(id, time, date, person, topic, loc, status) {
-    const msg = `Chi tiết cuộc hẹn:\n\nThời gian: ${time} ${date}\nNgười gặp: ${person}\nNội dung: ${topic}\nĐịa điểm: ${loc}\nTrạng thái: ${status}\n\nBạn có muốn chuyển sang Dạng Bảng để chỉnh sửa thông tin cuộc hẹn này không?`;
-    if (confirm(msg)) {
-        window.setCurrentViewMode('kanban'); // Thay đổi view mode thành Dạng Bảng
-        window.loadPage('LichHen', 'Lịch hẹn', id);
-    }
+    const modal = document.getElementById('apt-action-modal');
+    const content = document.getElementById('apt-action-content');
+    const buttons = document.getElementById('apt-action-buttons');
+    
+    let safeTitle = String(person).replace(/'/g, "\\'");
+    let bgColor = window.getStatusColor ? window.getStatusColor(status) : 'inherit';
+    
+    content.innerHTML = `
+        <p style="margin-bottom: 8px;"><strong><ion-icon name="time-outline"></ion-icon> Thời gian:</strong> ${time} - ${date}</p>
+        <p style="margin-bottom: 8px;"><strong><ion-icon name="person-outline"></ion-icon> Người gặp:</strong> ${person}</p>
+        <p style="margin-bottom: 8px;"><strong><ion-icon name="document-text-outline"></ion-icon> Nội dung:</strong> ${topic}</p>
+        <p style="margin-bottom: 8px;"><strong><ion-icon name="location-outline"></ion-icon> Địa điểm:</strong> ${loc}</p>
+        <p style="margin-bottom: 8px;"><strong><ion-icon name="flag-outline"></ion-icon> Trạng thái:</strong> <span style="color: ${bgColor}; font-weight: bold;">${status}</span></p>
+    `;
+    
+    buttons.innerHTML = `
+        <button class="btn" style="background: var(--primary-color); color: white; padding: 0.4rem 0.8rem; font-size: 0.9rem;" onclick="window.setCurrentViewMode('kanban'); window.loadPage('LichHen', 'Lịch hẹn', '${id}'); document.getElementById('apt-action-modal').classList.remove('active');">
+            <ion-icon name="create-outline"></ion-icon> Sửa (Dạng Bảng)
+        </button>
+        <button class="btn" style="background: var(--primary-color); color: white; padding: 0.4rem 0.8rem; font-size: 0.9rem;" onclick="openHistory('${id}', '${safeTitle}'); document.getElementById('apt-action-modal').classList.remove('active');">
+            <ion-icon name="time-outline"></ion-icon> Lịch sử
+        </button>
+        <button class="btn" style="background: var(--warning-color); color: white; padding: 0.4rem 0.8rem; font-size: 0.9rem;" onclick="copyRowData('${id}'); document.getElementById('apt-action-modal').classList.remove('active');">
+            <ion-icon name="copy-outline"></ion-icon> Copy
+        </button>
+        <button class="btn" style="background: var(--danger-color); color: white; padding: 0.4rem 0.8rem; font-size: 0.9rem;" onclick="deleteRowData('${id}'); document.getElementById('apt-action-modal').classList.remove('active');">
+            <ion-icon name="trash-outline"></ion-icon> Xóa
+        </button>
+    `;
+    
+    modal.classList.add('active');
 };
 
 function renderAppointments(data, sheetName) {
