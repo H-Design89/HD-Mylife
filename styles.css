@@ -963,3 +963,18 @@ input:checked + .slider {
 input:checked + .slider:before {
     transform: translateX(20px);
 }
+
+/* Flash Highlight for specific tasks */
+@keyframes flashRow {
+    0% { background-color: rgba(59, 130, 246, 0.8) !important; transform: scale(1.02); }
+    50% { background-color: rgba(59, 130, 246, 0.3) !important; transform: scale(1.01); }
+    100% { background-color: inherit; transform: scale(1); }
+}
+.flash-highlight {
+    animation: flashRow 2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    border: 2px solid var(--primary-color) !important;
+    border-radius: 8px;
+    z-index: 10;
+    position: relative;
+    box-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
+}

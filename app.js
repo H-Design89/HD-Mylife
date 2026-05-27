@@ -150,7 +150,7 @@ function renderSidebar() {
 }
 
 // --- Main Navigation ---
-async function loadPage(target, title) {
+async function loadPage(target, title, highlightId = null) {
     currentTab = target;
     pageTitle.textContent = title;
     
@@ -216,6 +216,18 @@ async function loadPage(target, title) {
                 btnToggleCalendar.classList.remove('hidden');
                 renderTable(currentData, target, true); // Enabled inline editing for non-Kanban boards
             }
+        }
+        
+        // Flash Highlight
+        if (highlightId) {
+            setTimeout(() => {
+                const el = document.querySelector(`tr[data-id="${highlightId}"]`) || document.querySelector(`.kanban-card[data-id="${highlightId}"]`);
+                if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    el.classList.add('flash-highlight');
+                    setTimeout(() => el.classList.remove('flash-highlight'), 3000);
+                }
+            }, 300); // Wait for DOM to render completely
         }
     }
 }
@@ -599,8 +611,8 @@ function renderTable(data, sheetName, allowInlineEdit = true, forceShowHeaders =
     html += `</tr></thead><tbody>`;
 
     displayData.forEach((row, rowIndex) => {
-        html += `<tr class="data-row" data-index="${rowIndex}">`;
         const idVal = idCol ? row[idCol] : '';
+        html += `<tr class="data-row" data-index="${rowIndex}" data-id="${idVal}">`;
         headers.forEach(h => {
             if (h === idCol) return; // Hide ID column
 
@@ -1149,7 +1161,7 @@ async function renderMyDay() {
                     <div style="font-size: 0.85rem; margin-bottom: 1rem;">
                         <span style="color: var(--text-muted);">Hạn chót:</span> <span style="${t.isUrgent ? 'color: var(--danger-color); font-weight: bold;' : 'color: var(--text-color);'}">${t.deadline}</span>
                     </div>
-                    <button class="btn btn-primary" style="width: 100%; justify-content: center; padding: 0.4rem; font-size: 0.85rem;" onclick="loadPage('${t.projId}', '${t.projName}')">
+                    <button class="btn btn-primary" style="width: 100%; justify-content: center; padding: 0.4rem; font-size: 0.85rem;" onclick="loadPage('${t.projId}', '${t.projName}', '${t.id}')">
                         Đi tới Dự án <ion-icon name="arrow-forward-outline"></ion-icon>
                     </button>
                 </div>
