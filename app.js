@@ -129,9 +129,7 @@ sidebarOverlay.addEventListener('click', () => {
 function renderSidebar() {
     let html = `<li class="nav-link active" data-target="dashboard"><ion-icon name="grid-outline"></ion-icon> Tổng quan</li>`;
     html += `<li class="nav-link" data-target="myday" style="color: var(--warning-color); font-weight: 600;"><ion-icon name="star-outline"></ion-icon> Tiêu điểm Hôm nay</li>`;
-    html += `<li class="nav-link" data-target="LichHen" style="color: var(--success-color); font-weight: 600;"><ion-icon name="calendar-number-outline"></ion-icon> Lịch hẹn</li>`;
     projectsConfig.forEach(proj => {
-        if (proj.id === 'LichHen') return; // Tránh trùng lặp nếu người dùng đã tạo trong Admin
         html += `<li class="nav-link" data-target="${proj.id}"><ion-icon name="${proj.icon || 'folder-outline'}"></ion-icon> ${proj.name}</li>`;
     });
     dynamicNavLinks.innerHTML = html;
@@ -198,14 +196,6 @@ async function loadPage(target, title, highlightId = null) {
             renderFinance(currentData, target);
         } else if (target === 'GhiChu' || title.toLowerCase().includes('ghi chú')) {
             renderNotes(currentData, target);
-        } else if (target === 'LichHen' || title.toLowerCase().includes('lịch hẹn')) {
-            if (currentViewMode !== 'kanban') { // Default 'table' shows Calendar
-                btnToggleView.innerHTML = '<ion-icon name="list-outline"></ion-icon> Dạng Bảng';
-                renderAppointments(currentData, target);
-            } else {
-                btnToggleView.innerHTML = '<ion-icon name="calendar-outline"></ion-icon> Dạng Lịch';
-                renderTable(currentData, target, true);
-            }
         } else {
             // Check if it should be a Kanban board
             const headers = getHeaders(currentData, target);
@@ -275,18 +265,6 @@ btnToggleView.addEventListener('click', () => {
     currentViewMode = currentViewMode === 'kanban' ? 'table' : 'kanban';
     // Re-render without re-fetching
     const headers = getHeaders(currentData, currentTab);
-    
-    if (currentTab === 'LichHen') {
-        if (currentViewMode !== 'kanban') { // Default 'table' shows Calendar
-            btnToggleView.innerHTML = '<ion-icon name="list-outline"></ion-icon> Dạng Bảng';
-            renderAppointments(currentData, currentTab);
-        } else {
-            btnToggleView.innerHTML = '<ion-icon name="calendar-outline"></ion-icon> Dạng Lịch';
-            renderTable(currentData, currentTab, true);
-        }
-        return;
-    }
-
     if (currentViewMode === 'kanban') {
         btnToggleView.innerHTML = '<ion-icon name="list-outline"></ion-icon> Dạng Bảng';
         renderKanban(currentData, currentTab, headers);
@@ -343,7 +321,6 @@ function getHeaders(data, sheetName) {
     if (data && data.length > 0) return Object.keys(data[0]);
     if (sheetName === 'TaiChinh') return ['Ngày', 'Loại', 'Số tiền', 'Danh mục', 'Dự án', 'Ghi chú'];
     if (sheetName === 'GhiChu') return ['ID', 'Ngày tạo', 'Tiêu đề', 'Thẻ', 'Nội dung'];
-    if (sheetName === 'LichHen') return ['ID', 'Ngày giờ', 'Người gặp / Đối tác', 'Địa điểm', 'Nội dung trao đổi', 'Trạng thái'];
     if (sheetName === 'Inbox') return ['ID', 'Ngày', 'Nội dung', 'Trạng thái'];
     if (sheetName === 'CongTy') return ['ID', 'Ngày', 'Trạng thái', 'Khách hàng/Nhà cung cấp', 'Phân loại', 'Người thực hiện', 'Người gặp', 'Địa điểm', 'Nội dung trao đổi', 'Nội dung xử lý', 'Phản hồi của khách/NCC', 'Loại'];
     return ['ID', 'Ngày', 'Trạng thái']; // Default with ID and Trạng thái for Kanban
@@ -591,190 +568,6 @@ function formatCell(val, colName, statusVal, idVal) {
     return val;
 }
 
-window.currentAptDate = new Date();
-
-window.changeAptMonth = function(offset) {
-    window.currentAptDate.setMonth(window.currentAptDate.getMonth() + offset);
-    renderAppointments(currentData, currentTab);
-};
-
-window.setCurrentViewMode = function(mode) {
-    currentViewMode = mode;
-};
-
-window.showAptDetails = function(id, time, date, person, topic, loc, status) {
-    const modal = document.getElementById('apt-action-modal');
-    const content = document.getElementById('apt-action-content');
-    const buttons = document.getElementById('apt-action-buttons');
-    
-    let safeTitle = String(person).replace(/'/g, "\\'");
-    let bgColor = window.getStatusColor ? window.getStatusColor(status) : 'inherit';
-    
-    content.innerHTML = `
-        <p style="margin-bottom: 8px;"><strong><ion-icon name="time-outline"></ion-icon> Thời gian:</strong> ${time} - ${date}</p>
-        <p style="margin-bottom: 8px;"><strong><ion-icon name="person-outline"></ion-icon> Người gặp:</strong> ${person}</p>
-        <p style="margin-bottom: 8px;"><strong><ion-icon name="document-text-outline"></ion-icon> Nội dung:</strong> ${topic}</p>
-        <p style="margin-bottom: 8px;"><strong><ion-icon name="location-outline"></ion-icon> Địa điểm:</strong> ${loc}</p>
-        <p style="margin-bottom: 8px;"><strong><ion-icon name="flag-outline"></ion-icon> Trạng thái:</strong> <span style="color: ${bgColor}; font-weight: bold;">${status}</span></p>
-    `;
-    
-    buttons.innerHTML = `
-        <button class="btn" style="background: var(--primary-color); color: white; padding: 0.4rem 0.8rem; font-size: 0.9rem;" onclick="window.setCurrentViewMode('kanban'); window.loadPage('LichHen', 'Lịch hẹn', '${id}'); document.getElementById('apt-action-modal').classList.remove('active');">
-            <ion-icon name="create-outline"></ion-icon> Sửa (Dạng Bảng)
-        </button>
-        <button class="btn" style="background: var(--primary-color); color: white; padding: 0.4rem 0.8rem; font-size: 0.9rem;" onclick="openHistory('${id}', '${safeTitle}'); document.getElementById('apt-action-modal').classList.remove('active');">
-            <ion-icon name="time-outline"></ion-icon> Lịch sử
-        </button>
-        <button class="btn" style="background: var(--warning-color); color: white; padding: 0.4rem 0.8rem; font-size: 0.9rem;" onclick="copyRowData('${id}'); document.getElementById('apt-action-modal').classList.remove('active');">
-            <ion-icon name="copy-outline"></ion-icon> Copy
-        </button>
-        <button class="btn" style="background: var(--danger-color); color: white; padding: 0.4rem 0.8rem; font-size: 0.9rem;" onclick="deleteRowData('${id}'); document.getElementById('apt-action-modal').classList.remove('active');">
-            <ion-icon name="trash-outline"></ion-icon> Xóa
-        </button>
-    `;
-    
-    modal.classList.add('active');
-};
-
-function renderAppointments(data, sheetName) {
-    if (!data || data.length === 0) {
-        contentArea.innerHTML = `
-            <div class="calendar-header" style="margin-bottom: 20px; justify-content: flex-end;">
-                <button class="btn btn-primary" onclick="document.getElementById('add-modal').classList.add('active');"><ion-icon name="add-outline"></ion-icon> Thêm Lịch Hẹn</button>
-            </div>
-            <div class="glass-card text-center"><p class="mt-4">Chưa có lịch hẹn nào. Hãy thêm lịch mới!</p><p style="color:var(--text-muted); font-size:0.8rem; margin-top:10px">Bạn cần tạo Sheet 'LichHen' trên Google Sheets nếu lưu dữ liệu bị lỗi.</p></div>
-        `;
-        return;
-    }
-
-    const headers = getHeaders(data, sheetName);
-    const idCol = headers.find(h => h.toLowerCase() === 'id') || headers[0];
-    const dateCol = headers.find(h => h.toLowerCase().includes('ngày giờ')) || headers[1];
-    const personCol = headers.find(h => h.toLowerCase().includes('người gặp')) || headers[2];
-    const locationCol = headers.find(h => h.toLowerCase().includes('địa điểm')) || headers[3];
-    const topicCol = headers.find(h => h.toLowerCase().includes('nội dung')) || headers[4];
-    const statusCol = headers.find(h => h.toLowerCase() === 'trạng thái' || h.toLowerCase() === 'status') || headers[5];
-
-    let year = window.currentAptDate.getFullYear();
-    let month = window.currentAptDate.getMonth();
-    
-    let firstDay = new Date(year, month, 1).getDay(); 
-    if (firstDay === 0) firstDay = 7; // Monday = 1
-    
-    let daysInMonth = new Date(year, month + 1, 0).getDate();
-    let prevDaysInMonth = new Date(year, month, 0).getDate();
-    let monthNames = ["Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6", "Tháng 7", "Tháng 8", "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12"];
-
-    let html = `
-        <div class="calendar-header" style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
-            <div class="calendar-controls" style="display: flex; gap: 10px; align-items: center;">
-                <button class="btn" style="background: rgba(255,255,255,0.1); border: 1px solid var(--glass-border); color: var(--text-color);" onclick="window.changeAptMonth(-1)"><ion-icon name="chevron-back-outline"></ion-icon></button>
-                <div class="calendar-header-title" style="font-size: 1.25rem; font-weight: bold; width: 150px; text-align: center;">${monthNames[month]} ${year}</div>
-                <button class="btn" style="background: rgba(255,255,255,0.1); border: 1px solid var(--glass-border); color: var(--text-color);" onclick="window.changeAptMonth(1)"><ion-icon name="chevron-forward-outline"></ion-icon></button>
-                <button class="btn" style="background: transparent; color: var(--text-muted); font-size: 0.85rem;" onclick="window.currentAptDate = new Date(); renderAppointments(currentData, currentTab);">Hôm nay</button>
-            </div>
-            <button class="btn btn-primary" onclick="document.getElementById('add-modal').classList.add('active');"><ion-icon name="add-outline"></ion-icon> Thêm Lịch Hẹn</button>
-        </div>
-        <div class="calendar-grid">
-            <div class="calendar-day-header">T2</div>
-            <div class="calendar-day-header">T3</div>
-            <div class="calendar-day-header">T4</div>
-            <div class="calendar-day-header">T5</div>
-            <div class="calendar-day-header">T6</div>
-            <div class="calendar-day-header" style="color: var(--warning-color);">T7</div>
-            <div class="calendar-day-header" style="color: var(--danger-color);">CN</div>
-    `;
-
-    // Process appointments by date string
-    let aptsByDate = {};
-    data.forEach(row => {
-        let dt = row[dateCol];
-        if (!dt) return;
-        let d = new Date(dt);
-        if (isNaN(d.getTime())) return;
-        
-        let dStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-        if (!aptsByDate[dStr]) aptsByDate[dStr] = [];
-        aptsByDate[dStr].push({
-            id: row[idCol],
-            time: d.toLocaleTimeString('vi-VN', {hour: '2-digit', minute: '2-digit'}),
-            person: row[personCol] || 'Không rõ',
-            topic: row[topicCol] || '',
-            status: row[statusCol] || 'Sắp tới',
-            loc: row[locationCol] || '',
-            rawDate: d
-        });
-    });
-
-    let today = new Date();
-    today.setHours(0,0,0,0);
-    let dayCount = 1;
-    let nextMonthDay = 1;
-
-    for (let i = 1; i <= 42; i++) {
-        let cellDate;
-        let cellClass = "calendar-day-cell";
-        let displayNum = "";
-        
-        if (i < firstDay) {
-            let d = prevDaysInMonth - (firstDay - i) + 1;
-            cellDate = new Date(year, month - 1, d);
-            cellClass += " other-month";
-            displayNum = d;
-        } else if (dayCount <= daysInMonth) {
-            cellDate = new Date(year, month, dayCount);
-            displayNum = dayCount;
-            dayCount++;
-        } else {
-            cellDate = new Date(year, month + 1, nextMonthDay);
-            cellClass += " other-month";
-            displayNum = nextMonthDay;
-            nextMonthDay++;
-        }
-        
-        if (cellDate.getTime() === today.getTime()) {
-            cellClass += " today";
-        }
-        
-        html += `<div class="${cellClass}">
-                    <div class="calendar-day-number">${displayNum}</div>
-                    <div class="day-tasks" style="padding: 4px; display: flex; flex-direction: column; gap: 4px; max-height: 120px; overflow-y: auto;">`;
-        
-        let dStr = cellDate.getFullYear() + '-' + String(cellDate.getMonth() + 1).padStart(2, '0') + '-' + String(cellDate.getDate()).padStart(2, '0');
-        let dayApts = aptsByDate[dStr] || [];
-        
-        // Sort by time
-        dayApts.sort((a,b) => a.rawDate - b.rawDate);
-
-        dayApts.forEach(apt => {
-            let bg = window.getStatusColor ? window.getStatusColor(apt.status) : 'var(--primary-color)';
-            if (apt.status === 'Sắp tới') bg = 'var(--primary-color)';
-            if (apt.status === 'Đã hủy') bg = 'rgba(255,255,255,0.1)';
-            if (apt.status === 'Đã gặp') bg = 'var(--success-color)';
-
-            let textColor = apt.status === 'Đã hủy' ? 'var(--text-muted)' : 'white';
-            let borderStyle = apt.status === 'Đã hủy' ? 'border: 1px dashed var(--glass-border);' : 'border: none;';
-
-            let safePerson = apt.person.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-            let safeTopic = apt.topic.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-            let safeLoc = apt.loc.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-            
-            let onClick = `window.showAptDetails('${apt.id}', '${apt.time}', '${displayNum}/${month+1}/${year}', '${safePerson}', '${safeTopic}', '${safeLoc}', '${apt.status}')`;
-
-            html += `
-                <div style="background: ${bg}; color: ${textColor}; ${borderStyle} padding: 4px 6px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" title="${apt.topic} - ${apt.loc}" onclick="${onClick}">
-                    <strong>${apt.time}</strong> ${apt.person}
-                </div>
-            `;
-        });
-        
-        html += `   </div>
-                 </div>`;
-    }
-
-    html += `</div>`;
-    contentArea.innerHTML = html;
-}
 
 function renderTable(data, sheetName, allowInlineEdit = true, forceShowHeaders = false) {
     let displayData = data;
