@@ -1,0 +1,21 @@
+{
+  "name": "My Life",
+  "short_name": "My Life",
+  "description": "Quản lý cá nhân",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#1e1e2d",
+  "theme_color": "#1e1e2d",
+  "icons": [
+    {
+      "src": "icon_mylife.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon_mylife.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

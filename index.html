@@ -9,6 +9,9 @@
     <!-- Ionicons -->
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon_mylife.png">
+    <meta name="theme-color" content="#1e1e2d">
 </head>
 <body>
     <!-- App Container (Hidden initially until logged in) -->
@@ -18,9 +21,12 @@
         
         <!-- Sidebar -->
         <aside class="sidebar">
-        <div class="logo">
-            <ion-icon name="planet-outline"></ion-icon>
-            My Life
+        <div class="logo" style="display: flex; align-items: center; gap: 8px; justify-content: center;">
+            <img src="logo_mylife.png" alt="Logo" style="max-height: 40px; display: none;" onload="this.style.display='block'; document.getElementById('fallback-sidebar-logo').style.display='none'" onerror="this.style.display='none'; document.getElementById('fallback-sidebar-logo').style.display='flex'">
+            <span id="fallback-sidebar-logo" style="display: flex; align-items: center; gap: 8px;">
+                <ion-icon name="planet-outline"></ion-icon>
+                My Life
+            </span>
         </div>
         <ul class="nav-links" id="dynamic-nav-links">
             <!-- Dynamic links will be injected here -->
@@ -78,9 +84,12 @@
     <!-- Login Screen -->
     <div id="login-container" class="modal-overlay active login-page-wrapper" style="position: fixed; height: 100vh; z-index: 9999;">
         <div class="modal glass-card login-glass-card" style="max-width: 400px; width: 90%; margin: 0 auto;">
-            <div class="logo mb-4">
-                <ion-icon name="planet-outline"></ion-icon>
-                My Life
+            <div class="logo mb-4" style="display: flex; align-items: center; gap: 8px; justify-content: center;">
+                <img src="logo_mylife.png" alt="Logo" style="max-height: 50px; display: none;" onload="this.style.display='block'; document.getElementById('fallback-login-logo').style.display='none'" onerror="this.style.display='none'; document.getElementById('fallback-login-logo').style.display='flex'">
+                <span id="fallback-login-logo" style="display: flex; align-items: center; gap: 8px;">
+                    <ion-icon name="planet-outline"></ion-icon>
+                    My Life
+                </span>
             </div>
             <h2 class="text-center mb-4">Đăng nhập</h2>
             <form id="login-form">
@@ -137,5 +146,16 @@
     </div>
 
     <script type="module" src="app.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js').then(registration => {
+                    console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                }).catch(err => {
+                    console.log('ServiceWorker registration failed: ', err);
+                });
+            });
+        }
+    </script>
 </body>
 </html>
