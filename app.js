@@ -129,7 +129,9 @@ sidebarOverlay.addEventListener('click', () => {
 function renderSidebar() {
     let html = `<li class="nav-link active" data-target="dashboard"><ion-icon name="grid-outline"></ion-icon> Tổng quan</li>`;
     html += `<li class="nav-link" data-target="myday" style="color: var(--warning-color); font-weight: 600;"><ion-icon name="star-outline"></ion-icon> Tiêu điểm Hôm nay</li>`;
+    html += `<li class="nav-link" data-target="LichHen" style="color: var(--success-color); font-weight: 600;"><ion-icon name="calendar-number-outline"></ion-icon> Lịch hẹn</li>`;
     projectsConfig.forEach(proj => {
+        if (proj.id === 'LichHen') return; // Tránh trùng lặp nếu người dùng đã tạo trong Admin
         html += `<li class="nav-link" data-target="${proj.id}"><ion-icon name="${proj.icon || 'folder-outline'}"></ion-icon> ${proj.name}</li>`;
     });
     dynamicNavLinks.innerHTML = html;
@@ -196,6 +198,8 @@ async function loadPage(target, title, highlightId = null) {
             renderFinance(currentData, target);
         } else if (target === 'GhiChu' || title.toLowerCase().includes('ghi chú')) {
             renderNotes(currentData, target);
+        } else if (target === 'LichHen' || title.toLowerCase().includes('lịch hẹn')) {
+            renderAppointments(currentData, target);
         } else {
             // Check if it should be a Kanban board
             const headers = getHeaders(currentData, target);
@@ -321,6 +325,7 @@ function getHeaders(data, sheetName) {
     if (data && data.length > 0) return Object.keys(data[0]);
     if (sheetName === 'TaiChinh') return ['Ngày', 'Loại', 'Số tiền', 'Danh mục', 'Dự án', 'Ghi chú'];
     if (sheetName === 'GhiChu') return ['ID', 'Ngày tạo', 'Tiêu đề', 'Thẻ', 'Nội dung'];
+    if (sheetName === 'LichHen') return ['ID', 'Ngày giờ', 'Người gặp / Đối tác', 'Địa điểm', 'Nội dung trao đổi', 'Trạng thái'];
     if (sheetName === 'Inbox') return ['ID', 'Ngày', 'Nội dung', 'Trạng thái'];
     if (sheetName === 'CongTy') return ['ID', 'Ngày', 'Trạng thái', 'Khách hàng/Nhà cung cấp', 'Phân loại', 'Người thực hiện', 'Người gặp', 'Địa điểm', 'Nội dung trao đổi', 'Nội dung xử lý', 'Phản hồi của khách/NCC', 'Loại'];
     return ['ID', 'Ngày', 'Trạng thái']; // Default with ID and Trạng thái for Kanban
@@ -566,6 +571,76 @@ function formatCell(val, colName, statusVal, idVal) {
     }
     
     return val;
+}
+
+function renderAppointments(data, sheetName) {
+    if (!data || data.length === 0) {
+        contentArea.innerHTML = `<div class="glass-card text-center"><p class="mt-4">Chưa có lịch hẹn nào. Hãy thêm lịch mới!</p><p style="color:var(--text-muted); font-size:0.8rem; margin-top:10px">Bạn cần tạo Sheet 'LichHen' trên Google Sheets nếu lưu dữ liệu bị lỗi.</p></div>`;
+        return;
+    }
+
+    const headers = getHeaders(data, sheetName);
+    const idCol = headers.find(h => h.toLowerCase() === 'id') || headers[0];
+    const dateCol = headers.find(h => h.toLowerCase().includes('ngày giờ')) || headers[1];
+    const personCol = headers.find(h => h.toLowerCase().includes('người gặp')) || headers[2];
+    const locationCol = headers.find(h => h.toLowerCase().includes('địa điểm')) || headers[3];
+    const topicCol = headers.find(h => h.toLowerCase().includes('nội dung')) || headers[4];
+    const statusCol = headers.find(h => h.toLowerCase() === 'trạng thái' || h.toLowerCase() === 'status') || headers[5];
+
+    let sortedData = [...data].sort((a, b) => {
+        let da = new Date(a[dateCol]);
+        let db = new Date(b[dateCol]);
+        if (isNaN(da)) da = new Date(0);
+        if (isNaN(db)) db = new Date(0);
+        return da - db;
+    });
+
+    let html = `<div class="agenda-container">`;
+
+    sortedData.forEach(row => {
+        const idVal = row[idCol] || '';
+        const dt = row[dateCol] || '';
+        const person = row[personCol] || 'Không rõ';
+        const loc = row[locationCol] || '';
+        const topic = row[topicCol] || '';
+        const status = row[statusCol] || 'Sắp tới';
+
+        let dateObj = new Date(dt);
+        let dateStr = dt;
+        let timeStr = '';
+        if (!isNaN(dateObj)) {
+            dateStr = dateObj.toLocaleDateString('vi-VN', {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'});
+            timeStr = dateObj.toLocaleTimeString('vi-VN', {hour: '2-digit', minute: '2-digit'});
+        }
+
+        const opts = ['Sắp tới', 'Đã gặp', 'Đã hủy', 'Đang chờ'];
+        if (!opts.includes(status)) opts.push(status);
+        
+        const bgColor = window.getStatusColor ? window.getStatusColor(status) : 'var(--bg-color)';
+
+        html += `
+            <div class="agenda-card" data-id="${idVal}">
+                <div class="agenda-time">
+                    <div class="a-date">${dateStr}</div>
+                    <div class="a-time">${timeStr}</div>
+                </div>
+                <div class="agenda-details">
+                    <h3><ion-icon name="person-circle-outline"></ion-icon> ${person}</h3>
+                    <p class="a-topic">${topic}</p>
+                    <p class="a-loc"><ion-icon name="location-outline"></ion-icon> ${loc}</p>
+                </div>
+                <div class="agenda-status">
+                    <select class="form-control" style="width:130px; font-size:0.85rem; padding:4px; font-weight: bold; color: #fff; background: ${bgColor}; border: none;" 
+                        data-col="${statusCol}" onchange="window.updateStatusInline(this, '${idVal}')">
+                        ${opts.map(opt => `<option value="${opt}" style="background:var(--bg-color); color:var(--text-color);" ${status === opt ? 'selected' : ''}>${opt}</option>`).join('')}
+                    </select>
+                </div>
+            </div>
+        `;
+    });
+
+    html += `</div>`;
+    contentArea.innerHTML = html;
 }
 
 function renderTable(data, sheetName, allowInlineEdit = true, forceShowHeaders = false) {
@@ -1068,14 +1143,55 @@ async function renderDashboard() {
 async function renderMyDay() {
     contentArea.innerHTML = `<div class="loading-container"><span class="loader"></span><p class="mt-4">Đang thu thập Tiêu điểm Hôm nay...</p></div>`;
     
-    const projectSheets = projectsConfig.filter(p => !['TaiChinh', 'GhiChu', 'Inbox'].includes(p.id));
+    const projectSheets = projectsConfig.filter(p => !['TaiChinh', 'GhiChu', 'Inbox', 'LichHen'].includes(p.id));
     const fetchPromises = projectSheets.map(p => getData(p.id));
+    // Fetch LichHen separately for Widget
+    const aptPromise = getData('LichHen').catch(() => []);
     
-    const results = await Promise.all(fetchPromises);
+    const [results, aptData] = await Promise.all([
+        Promise.all(fetchPromises),
+        aptPromise
+    ]);
     
     let focusTasks = [];
+    let upcomingApts = [];
     let today = new Date();
     today.setHours(0,0,0,0);
+    let tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    // Process Appointments
+    if (aptData && aptData.length > 0 && !aptData.error) {
+        const headers = getHeaders(aptData, 'LichHen');
+        const dateCol = headers.find(h => h.toLowerCase().includes('ngày giờ')) || headers[1];
+        const personCol = headers.find(h => h.toLowerCase().includes('người gặp')) || headers[2];
+        const topicCol = headers.find(h => h.toLowerCase().includes('nội dung')) || headers[4];
+        const statusCol = headers.find(h => h.toLowerCase() === 'trạng thái' || h.toLowerCase() === 'status') || headers[5];
+
+        aptData.forEach(row => {
+            const statusVal = String(row[statusCol] || '').toLowerCase();
+            if (statusVal.includes('hủy') || statusVal.includes('đã gặp')) return;
+
+            if (row[dateCol]) {
+                let d = new Date(row[dateCol]);
+                if (!isNaN(d.getTime())) {
+                    let dZero = new Date(d);
+                    dZero.setHours(0,0,0,0);
+                    
+                    if (dZero.getTime() === today.getTime() || dZero.getTime() === tomorrow.getTime()) {
+                        upcomingApts.push({
+                            time: d.toLocaleTimeString('vi-VN', {hour: '2-digit', minute: '2-digit'}),
+                            dateStr: dZero.getTime() === today.getTime() ? 'Hôm nay' : 'Ngày mai',
+                            person: row[personCol] || 'Không rõ',
+                            topic: row[topicCol] || '',
+                            rawDate: d
+                        });
+                    }
+                }
+            }
+        });
+        upcomingApts.sort((a,b) => a.rawDate - b.rawDate);
+    }
     
     results.forEach((data, index) => {
         if (!data || data.length === 0) return;
@@ -1137,7 +1253,39 @@ async function renderMyDay() {
         return 0;
     });
 
-    let html = `
+    let html = ``;
+
+    // Render Appointment Widget
+    if (upcomingApts.length > 0) {
+        html += `
+        <div class="apt-widget">
+            <div class="apt-widget-header">
+                <ion-icon name="calendar-outline"></ion-icon> Lịch hẹn sắp tới (${upcomingApts.length})
+            </div>
+            <div class="apt-list">
+        `;
+        upcomingApts.forEach(apt => {
+            html += `
+                <div class="apt-item">
+                    <div class="apt-item-info">
+                        <div class="apt-item-time" style="min-width: 100px;">
+                            ${apt.time} <br><span style="font-size:0.75rem; color:var(--text-muted); font-weight:normal;">${apt.dateStr}</span>
+                        </div>
+                        <div>
+                            <div style="font-weight: 600; font-size: 1.05rem;"><ion-icon name="person-circle-outline"></ion-icon> ${apt.person}</div>
+                            <div class="apt-item-desc">${apt.topic}</div>
+                        </div>
+                    </div>
+                    <button class="btn" style="background: rgba(255,255,255,0.1); border: 1px solid var(--success-color); color: var(--success-color); padding: 0.4rem 0.8rem; font-size: 0.85rem;" onclick="loadPage('LichHen', 'Lịch hẹn')">
+                        Chi tiết
+                    </button>
+                </div>
+            `;
+        });
+        html += `</div></div>`;
+    }
+
+    html += `
         <div class="glass-card" style="margin-bottom: 2rem; background: linear-gradient(135deg, rgba(245,158,11,0.1) 0%, rgba(220,38,38,0.1) 100%); border-left: 4px solid var(--warning-color);">
             <h2 style="margin-bottom: 0.5rem; color: var(--warning-color); display: flex; align-items: center; gap: 8px;"><ion-icon name="star"></ion-icon> Tiêu điểm Hôm nay</h2>
             <p style="color: var(--text-muted);">Danh sách công việc ưu tiên Cao hoặc có hạn chót trong hôm nay/đã quá hạn từ tất cả dự án (đã tự động ẩn việc Hoàn thành).</p>
