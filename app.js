@@ -598,6 +598,14 @@ window.changeAptMonth = function(offset) {
     renderAppointments(currentData, currentTab);
 };
 
+window.showAptDetails = function(id, time, date, person, topic, loc, status) {
+    const msg = `Chi tiết cuộc hẹn:\n\nThời gian: ${time} ${date}\nNgười gặp: ${person}\nNội dung: ${topic}\nĐịa điểm: ${loc}\nTrạng thái: ${status}\n\nBạn có muốn chuyển sang Dạng Bảng để chỉnh sửa thông tin cuộc hẹn này không?`;
+    if (confirm(msg)) {
+        window.currentViewMode = 'kanban'; // Kanban mode in LichHen means Table View
+        window.loadPage('LichHen', 'Lịch hẹn', id);
+    }
+};
+
 function renderAppointments(data, sheetName) {
     if (!data || data.length === 0) {
         contentArea.innerHTML = `
@@ -717,8 +725,11 @@ function renderAppointments(data, sheetName) {
             let textColor = apt.status === 'Đã hủy' ? 'var(--text-muted)' : 'white';
             let borderStyle = apt.status === 'Đã hủy' ? 'border: 1px dashed var(--glass-border);' : 'border: none;';
 
-            // Show details via standard alert for simplicity instead of full edit prompt, since they can edit in Table view
-            let onClick = `alert('Chi tiết cuộc hẹn:\\n\\nThời gian: ${apt.time} ${displayNum}/${month+1}/${year}\\nNgười gặp: ${apt.person}\\nNội dung: ${apt.topic}\\nĐịa điểm: ${apt.loc}\\nTrạng thái: ${apt.status}')`;
+            let safePerson = apt.person.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            let safeTopic = apt.topic.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            let safeLoc = apt.loc.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            
+            let onClick = `window.showAptDetails('${apt.id}', '${apt.time}', '${displayNum}/${month+1}/${year}', '${safePerson}', '${safeTopic}', '${safeLoc}', '${apt.status}')`;
 
             html += `
                 <div style="background: ${bg}; color: ${textColor}; ${borderStyle} padding: 4px 6px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" title="${apt.topic} - ${apt.loc}" onclick="${onClick}">
