@@ -225,7 +225,7 @@ async function loadPage(target, title, highlightId = null) {
                 if (el) {
                     el.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     el.classList.add('flash-highlight');
-                    setTimeout(() => el.classList.remove('flash-highlight'), 3000);
+                    setTimeout(() => el.classList.remove('flash-highlight'), 4500);
                 }
             }, 300); // Wait for DOM to render completely
         }
