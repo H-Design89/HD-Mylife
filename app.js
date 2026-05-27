@@ -199,7 +199,7 @@ async function loadPage(target, title, highlightId = null) {
         } else if (target === 'GhiChu' || title.toLowerCase().includes('ghi chú')) {
             renderNotes(currentData, target);
         } else if (target === 'LichHen' || title.toLowerCase().includes('lịch hẹn')) {
-            if (currentViewMode === 'kanban') {
+            if (currentViewMode !== 'kanban') { // Default 'table' shows Calendar
                 btnToggleView.innerHTML = '<ion-icon name="list-outline"></ion-icon> Dạng Bảng';
                 renderAppointments(currentData, target);
             } else {
@@ -277,7 +277,7 @@ btnToggleView.addEventListener('click', () => {
     const headers = getHeaders(currentData, currentTab);
     
     if (currentTab === 'LichHen') {
-        if (currentViewMode === 'kanban') {
+        if (currentViewMode !== 'kanban') { // Default 'table' shows Calendar
             btnToggleView.innerHTML = '<ion-icon name="list-outline"></ion-icon> Dạng Bảng';
             renderAppointments(currentData, currentTab);
         } else {
@@ -699,7 +699,7 @@ function renderAppointments(data, sheetName) {
         }
         
         html += `<div class="${cellClass}">
-                    <div class="day-number">${displayNum}</div>
+                    <div class="calendar-day-number">${displayNum}</div>
                     <div class="day-tasks" style="padding: 4px; display: flex; flex-direction: column; gap: 4px; max-height: 120px; overflow-y: auto;">`;
         
         let dStr = cellDate.getFullYear() + '-' + String(cellDate.getMonth() + 1).padStart(2, '0') + '-' + String(cellDate.getDate()).padStart(2, '0');
