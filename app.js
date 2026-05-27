@@ -1236,7 +1236,12 @@ function initHistoryPanel() {
             <div style="text-align:center; margin-top:20px; color:var(--text-muted);">Đang tải dữ liệu...</div>
         </div>
         <div class="history-footer">
-            <textarea id="history-new-content" class="form-control" rows="3" placeholder="Nhập nội dung tương tác mới (nhấn Lưu để cập nhật)..."></textarea>
+            <div style="position: relative;">
+                <textarea id="history-new-content" class="form-control" rows="3" placeholder="Nhập nội dung tương tác mới (nhấn Lưu để cập nhật)..." style="padding-right: 40px; resize: vertical; min-height: 80px; max-height: 50vh; overflow-y: auto;" oninput="this.style.height = 'auto'; this.style.height = (this.scrollHeight) + 'px';"></textarea>
+                <button type="button" onclick="toggleHistoryExpand(this)" class="btn" style="position: absolute; right: 8px; bottom: 8px; background: rgba(255,255,255,0.1); border: 1px solid var(--glass-border); border-radius: 4px; padding: 4px; font-size: 1.2rem; display: flex; align-items: center; justify-content: center; color: var(--text-color);" title="Mở rộng/Thu gọn ô nhập">
+                    <ion-icon name="expand-outline"></ion-icon>
+                </button>
+            </div>
             <div style="display: flex; gap: 10px; margin-top: 1rem;">
                 <button class="btn btn-primary" style="flex: 1; justify-content: center;" onclick="saveHistory()" id="btn-save-history">
                     <ion-icon name="send-outline"></ion-icon> <span id="btn-save-history-text">Lưu cập nhật</span>
@@ -1279,6 +1284,20 @@ window.closeHistory = function() {
     const panel = document.getElementById('history-panel');
     if(overlay) overlay.classList.remove('active');
     if(panel) panel.classList.remove('active');
+};
+
+window.toggleHistoryExpand = function(btn) {
+    const textarea = document.getElementById('history-new-content');
+    const icon = btn.querySelector('ion-icon');
+    if (textarea.style.minHeight === '300px') {
+        textarea.style.minHeight = '80px';
+        textarea.style.height = 'auto';
+        icon.setAttribute('name', 'expand-outline');
+    } else {
+        textarea.style.minHeight = '300px';
+        textarea.style.height = '300px';
+        icon.setAttribute('name', 'contract-outline');
+    }
 };
 
 function renderHistoryTimeline(historyData, parentId) {
