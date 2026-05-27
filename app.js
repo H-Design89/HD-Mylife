@@ -13,6 +13,7 @@ const contentArea = document.getElementById('content-area');
 const btnAdd = document.getElementById('btn-add');
 const btnToggleView = document.getElementById('btn-toggle-view');
 const btnToggleCalendar = document.getElementById('btn-toggle-calendar');
+const btnToggleCompleted = document.getElementById('btn-toggle-completed');
 const calendarContainer = document.getElementById('calendar-view-container');
 
 const addModal = document.getElementById('add-modal');
@@ -44,6 +45,7 @@ let projectsConfig = [];
 let currentViewMode = 'table'; // 'kanban' or 'table'
 let currentSortCol = null;
 let currentSortAsc = true;
+let showCompletedTasks = false;
 
 // Kanban Statuses
 const KANBAN_STATUSES = ['Cần làm', 'Đang xử lý', 'Chờ duyệt', 'Hoàn thành'];
@@ -126,6 +128,7 @@ sidebarOverlay.addEventListener('click', () => {
 
 function renderSidebar() {
     let html = `<li class="nav-link active" data-target="dashboard"><ion-icon name="grid-outline"></ion-icon> Tổng quan</li>`;
+    html += `<li class="nav-link" data-target="myday" style="color: var(--warning-color); font-weight: 600;"><ion-icon name="star-outline"></ion-icon> Tiêu điểm Hôm nay</li>`;
     projectsConfig.forEach(proj => {
         html += `<li class="nav-link" data-target="${proj.id}"><ion-icon name="${proj.icon || 'folder-outline'}"></ion-icon> ${proj.name}</li>`;
     });
@@ -155,6 +158,7 @@ async function loadPage(target, title) {
     btnAdd.classList.add('hidden');
     btnToggleView.classList.add('hidden');
     btnToggleCalendar.classList.add('hidden');
+    if (btnToggleCompleted) btnToggleCompleted.classList.add('hidden');
     
     // Reset calendar view
     isCalendarActive = false;
@@ -167,6 +171,8 @@ async function loadPage(target, title) {
         renderDashboard();
     } else if (target === 'admin') {
         renderAdmin();
+    } else if (target === 'myday') {
+        renderMyDay();
     } else {
         btnAdd.classList.remove('hidden');
         showLoader();
@@ -198,6 +204,7 @@ async function loadPage(target, title) {
             if (hasKanbanCols) {
                 btnToggleView.classList.remove('hidden');
                 btnToggleCalendar.classList.remove('hidden');
+                if (btnToggleCompleted) btnToggleCompleted.classList.remove('hidden');
                 if (currentViewMode === 'kanban') {
                     btnToggleView.innerHTML = '<ion-icon name="list-outline"></ion-icon> Dạng Bảng';
                     renderKanban(currentData, target, headers);
@@ -211,6 +218,29 @@ async function loadPage(target, title) {
             }
         }
     }
+}
+
+if (btnToggleCompleted) {
+    btnToggleCompleted.addEventListener('click', () => {
+        showCompletedTasks = !showCompletedTasks;
+        if (showCompletedTasks) {
+            btnToggleCompleted.innerHTML = '<ion-icon name="eye-outline"></ion-icon> Hiện việc Hoàn thành';
+            btnToggleCompleted.style.color = 'var(--success-color)';
+            btnToggleCompleted.style.borderColor = 'var(--success-color)';
+        } else {
+            btnToggleCompleted.innerHTML = '<ion-icon name="eye-off-outline"></ion-icon> Ẩn việc Hoàn thành';
+            btnToggleCompleted.style.color = 'var(--text-color)';
+            btnToggleCompleted.style.borderColor = 'var(--glass-border)';
+        }
+        
+        // Re-render
+        const headers = getHeaders(currentData, currentTab);
+        if (currentViewMode === 'kanban') {
+            renderKanban(currentData, currentTab, headers);
+        } else {
+            renderTable(currentData, currentTab, true);
+        }
+    });
 }
 
 btnToggleView.addEventListener('click', () => {
@@ -526,12 +556,24 @@ function formatCell(val, colName, statusVal, idVal) {
 }
 
 function renderTable(data, sheetName, allowInlineEdit = true, forceShowHeaders = false) {
-    if ((!data || data.length === 0) && !forceShowHeaders) {
-        contentArea.innerHTML = `<div class="glass-card text-center"><p class="mt-4">Chưa có dữ liệu. Hãy thêm bản ghi mới!</p><p style="color:var(--warning-color); font-size:0.8rem; margin-top:10px">Mẹo: Để dùng tính năng Kanban kéo thả, Sheet của bạn phải có cột 'ID' và cột 'Trạng thái'.</p></div>`;
-        return;
-    }
+    let displayData = data;
+    
     const headers = getHeaders(data, sheetName);
     const idCol = headers.find(h => h.toLowerCase() === 'id');
+    const statusCol = headers.find(h => h.toLowerCase() === 'trạng thái' || h.toLowerCase() === 'status');
+    
+    // Filter completed tasks if needed
+    if (!showCompletedTasks && statusCol && displayData && displayData.length > 0) {
+        displayData = displayData.filter(r => {
+            const statusVal = String(r[statusCol] || '').toLowerCase();
+            return !statusVal.includes('hoàn thành') && !statusVal.includes('done');
+        });
+    }
+
+    if ((!displayData || displayData.length === 0) && !forceShowHeaders) {
+        contentArea.innerHTML = `<div class="glass-card text-center"><p class="mt-4">Không có dữ liệu hiển thị.</p><p style="color:var(--warning-color); font-size:0.8rem; margin-top:10px">Mẹo: Nếu bạn đang ẩn việc Hoàn thành, hãy nhấn "Hiện việc Hoàn thành" ở góc trên cùng.</p></div>`;
+        return;
+    }
 
     let html = `<div class="glass-card table-container"><table><thead><tr>`;
     const displayHeaders = headers.filter(h => h !== idCol);
@@ -556,7 +598,7 @@ function renderTable(data, sheetName, allowInlineEdit = true, forceShowHeaders =
     if (allowInlineEdit && idCol) html += `<th style="width: 140px; text-align: center;">Thao tác</th>`;
     html += `</tr></thead><tbody>`;
 
-    data.forEach((row, rowIndex) => {
+    displayData.forEach((row, rowIndex) => {
         html += `<tr class="data-row" data-index="${rowIndex}">`;
         const idVal = idCol ? row[idCol] : '';
         headers.forEach(h => {
@@ -674,6 +716,10 @@ function renderKanban(data, sheetName, headers) {
     
     // Create columns
     KANBAN_STATUSES.forEach(status => {
+        if (!showCompletedTasks && (status.toLowerCase().includes('hoàn thành') || status.toLowerCase().includes('done'))) {
+            return; // Bỏ qua cột Hoàn thành
+        }
+        
         html += `
             <div class="kanban-column" data-status="${status}">
                 <div class="kanban-column-header">
@@ -1002,6 +1048,115 @@ async function renderDashboard() {
         html += `</div>`;
     }
     html += `</div>`;
+    
+    contentArea.innerHTML = html;
+}
+
+async function renderMyDay() {
+    contentArea.innerHTML = `<div class="loading-container"><span class="loader"></span><p class="mt-4">Đang thu thập Tiêu điểm Hôm nay...</p></div>`;
+    
+    const projectSheets = projectsConfig.filter(p => !['TaiChinh', 'GhiChu', 'Inbox'].includes(p.id));
+    const fetchPromises = projectSheets.map(p => getData(p.id));
+    
+    const results = await Promise.all(fetchPromises);
+    
+    let focusTasks = [];
+    let today = new Date();
+    today.setHours(0,0,0,0);
+    
+    results.forEach((data, index) => {
+        if (!data || data.length === 0) return;
+        const projConfig = projectSheets[index];
+        const headers = getHeaders(data, projConfig.id);
+        
+        const idCol = headers.find(h => h.toLowerCase() === 'id');
+        const statusCol = headers.find(h => h.toLowerCase() === 'trạng thái' || h.toLowerCase() === 'status');
+        const priorityCol = headers.find(h => h.toLowerCase().includes('ưu tiên') || h.toLowerCase().includes('priority'));
+        const deadlineCol = headers.find(h => h.toLowerCase().includes('hạn chót') || h.toLowerCase().includes('deadline'));
+        const titleCol = headers.find(h => h.toLowerCase().includes('tên') || h.toLowerCase().includes('tiêu đề') || h.toLowerCase().includes('khách hàng')) || headers[2] || headers[1];
+        
+        if (!statusCol) return;
+        
+        data.forEach(row => {
+            const statusVal = String(row[statusCol] || '').toLowerCase();
+            if (statusVal.includes('hoàn thành') || statusVal.includes('done')) return;
+            
+            let isFocus = false;
+            let isOverdueOrToday = false;
+            
+            if (priorityCol && String(row[priorityCol] || '').toLowerCase().includes('cao')) {
+                isFocus = true;
+            }
+            
+            if (deadlineCol && row[deadlineCol]) {
+                let parts = String(row[deadlineCol]).split('/');
+                if (parts.length === 3) {
+                    let d = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+                    if (!isNaN(d.getTime())) {
+                        d.setHours(0,0,0,0);
+                        let diffDays = Math.ceil((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                        if (diffDays <= 0) {
+                            isFocus = true;
+                            isOverdueOrToday = true;
+                        }
+                    }
+                }
+            }
+            
+            if (isFocus) {
+                focusTasks.push({
+                    projId: projConfig.id,
+                    projName: projConfig.name,
+                    id: row[idCol],
+                    title: row[titleCol] || 'Không xác định',
+                    status: row[statusCol] || 'Cần làm',
+                    deadline: row[deadlineCol] || 'Không có',
+                    isUrgent: isOverdueOrToday,
+                    priority: row[priorityCol] || ''
+                });
+            }
+        });
+    });
+    
+    focusTasks.sort((a, b) => {
+        if (a.isUrgent && !b.isUrgent) return -1;
+        if (!a.isUrgent && b.isUrgent) return 1;
+        return 0;
+    });
+
+    let html = `
+        <div class="glass-card" style="margin-bottom: 2rem; background: linear-gradient(135deg, rgba(245,158,11,0.1) 0%, rgba(220,38,38,0.1) 100%); border-left: 4px solid var(--warning-color);">
+            <h2 style="margin-bottom: 0.5rem; color: var(--warning-color); display: flex; align-items: center; gap: 8px;"><ion-icon name="star"></ion-icon> Tiêu điểm Hôm nay</h2>
+            <p style="color: var(--text-muted);">Danh sách công việc ưu tiên Cao hoặc có hạn chót trong hôm nay/đã quá hạn từ tất cả dự án (đã tự động ẩn việc Hoàn thành).</p>
+        </div>
+    `;
+
+    if (focusTasks.length === 0) {
+        html += `<div class="glass-card text-center"><p class="mt-4">Tuyệt vời! Không có công việc khẩn cấp hay quá hạn nào cần giải quyết hôm nay.</p></div>`;
+    } else {
+        html += `<div class="notes-grid">`;
+        focusTasks.forEach(t => {
+            const statusColor = window.getStatusColor(t.status);
+            html += `
+                <div class="note-card" style="border-left: 4px solid ${t.isUrgent ? 'var(--danger-color)' : 'var(--warning-color)'};">
+                    <div style="font-size: 0.75rem; background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 12px; display: inline-block; margin-bottom: 8px; color: var(--text-color); font-weight: 500;">
+                        <ion-icon name="folder-outline" style="vertical-align: middle;"></ion-icon> ${t.projName}
+                    </div>
+                    <h3 style="margin-bottom: 0.5rem; font-size: 1.1rem;">${t.title}</h3>
+                    <div style="font-size: 0.85rem; margin-bottom: 0.25rem;">
+                        <span style="color: var(--text-muted);">Trạng thái:</span> <span style="color: ${statusColor}; font-weight: 600;">${t.status}</span>
+                    </div>
+                    <div style="font-size: 0.85rem; margin-bottom: 1rem;">
+                        <span style="color: var(--text-muted);">Hạn chót:</span> <span style="${t.isUrgent ? 'color: var(--danger-color); font-weight: bold;' : 'color: var(--text-color);'}">${t.deadline}</span>
+                    </div>
+                    <button class="btn btn-primary" style="width: 100%; justify-content: center; padding: 0.4rem; font-size: 0.85rem;" onclick="loadPage('${t.projId}', '${t.projName}')">
+                        Đi tới Dự án <ion-icon name="arrow-forward-outline"></ion-icon>
+                    </button>
+                </div>
+            `;
+        });
+        html += `</div>`;
+    }
     
     contentArea.innerHTML = html;
 }
