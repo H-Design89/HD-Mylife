@@ -88,19 +88,19 @@ async function init() {
     
     try { projectsConfig = JSON.parse(appSettings.Projects); } catch(e) { projectsConfig = []; }
 
-    if (localStorage.getItem('isLoggedIn') === 'true') showApp();
+    if (sessionStorage.getItem('isLoggedIn') === 'true') showApp();
 }
 
 loginForm.addEventListener('submit', (e) => {
     e.preventDefault();
     if (appSettings && loginPassword.value === appSettings.Password) {
-        localStorage.setItem('isLoggedIn', 'true');
+        sessionStorage.setItem('isLoggedIn', 'true');
         showApp();
     } else alert("Mật khẩu không chính xác!");
 });
 
 btnLogout.addEventListener('click', () => {
-    localStorage.removeItem('isLoggedIn');
+    sessionStorage.removeItem('isLoggedIn');
     appContainer.classList.add('hidden');
     loginContainer.classList.remove('hidden');
     loginPassword.value = '';
