@@ -598,10 +598,14 @@ window.changeAptMonth = function(offset) {
     renderAppointments(currentData, currentTab);
 };
 
+window.setCurrentViewMode = function(mode) {
+    currentViewMode = mode;
+};
+
 window.showAptDetails = function(id, time, date, person, topic, loc, status) {
     const msg = `Chi tiết cuộc hẹn:\n\nThời gian: ${time} ${date}\nNgười gặp: ${person}\nNội dung: ${topic}\nĐịa điểm: ${loc}\nTrạng thái: ${status}\n\nBạn có muốn chuyển sang Dạng Bảng để chỉnh sửa thông tin cuộc hẹn này không?`;
     if (confirm(msg)) {
-        window.currentViewMode = 'kanban'; // Kanban mode in LichHen means Table View
+        window.setCurrentViewMode('kanban'); // Thay đổi view mode thành Dạng Bảng
         window.loadPage('LichHen', 'Lịch hẹn', id);
     }
 };
